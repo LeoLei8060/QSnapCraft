@@ -2,12 +2,14 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSystemTrayIcon>
-#include <QMenu>
+#include <QListWidget>
+#include <QTreeWidget>
 #include <QPushButton>
 #include <QVBoxLayout>
-
-class ScreenCapture;
+#include <QHBoxLayout>
+#include <QFileDialog>
+#include "uiautomation.h"
+#include "screencapture.h"
 
 class MainWindow : public QMainWindow
 {
@@ -18,18 +20,21 @@ public:
     ~MainWindow();
 
 private slots:
-    void startCapture();
-    void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
+    void refreshWindows();
+    void onWindowSelected(QListWidgetItem* item);
+    void startScreenshot();
+    void onCaptureCompleted(const QPixmap &pixmap);
 
 private:
-    void createActions();
-    void createTrayIcon();
     void setupUI();
+    void updateControlsInfo(const WindowInfo& info);
 
-    QSystemTrayIcon *trayIcon;
-    QMenu *trayIconMenu;
-    QPushButton *captureBtn;
-    ScreenCapture *screenCapture;
+    QListWidget* windowList;
+    QTreeWidget* controlsTree;
+    QPushButton* refreshButton;
+    QPushButton* screenshotButton;
+    UIAutomation* automation;
+    ScreenCapture* screencapture;
 };
 
 #endif // MAINWINDOW_H
