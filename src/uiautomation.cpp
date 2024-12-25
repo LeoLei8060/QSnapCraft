@@ -134,13 +134,6 @@ void UIAutomation::getControlsRecursive(IUIAutomationElement     *element,
                 info.bounds = bounds;
                 info.isEnabled = true;
                 info.type = controlType;
-
-                BSTR name = nullptr;
-                if (SUCCEEDED(element->get_CurrentName(&name)) && name) {
-                    info.name = QString::fromWCharArray(name);
-                    SysFreeString(name);
-                }
-
                 controls.push_back(info);
             }
         }

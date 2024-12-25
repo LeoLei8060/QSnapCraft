@@ -72,10 +72,43 @@ void ScreenCapture::keyPressEvent(QKeyEvent *event)
 
 void ScreenCapture::updateHighlightRect(const QPoint &pos)
 {
-    QRect newRect = getControlRect(pos);
+    QRect newRect = getHighlightWindow(pos);
     if (newRect != highlightRect) {
         highlightRect = newRect;
         update();
+    }
+}
+
+QString GetWindowTitle(HWND hwnd)
+{
+    char title[256];
+    GetWindowTextA(hwnd, title, sizeof(title));
+    return QString(title);
+}
+
+QRect ScreenCapture::getHighlightWindow(const QPoint &pos)
+{
+    DWORD selfID = GetCurrentProcessId();
+    HWND  hwnd = GetTopWindow(nullptr);
+    while (hwnd != nullptr) {
+        if (IsWindow(hwnd) && IsWindowVisible(hwnd)) {
+            DWORD winID;
+            GetWindowThreadProcessId(hwnd, &winID);
+            if (winID != selfID) {
+                RECT windowRect;
+                GetWindowRect(hwnd, &windowRect);
+                QRect windowQRc = QRect(windowRect.left,
+                                        windowRect.top,
+                                        windowRect.right - windowRect.left,
+                                        windowRect.bottom - windowRect.top);
+                if (windowQRc.contains(pos)) {
+                    qDebug() << "window: " << GetWindowTitle(hwnd);
+                    QRect result = getControlRect(hwnd, pos);
+                    return result.isEmpty() ? windowQRc : result;
+                }
+            }
+        }
+        hwnd = GetNextWindow(hwnd, GW_HWNDNEXT);
     }
 }
 
@@ -108,7 +141,8 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
         WindowInfo info = data->automation->getWindowControls(hwnd, data->pos);
 
         if (!info.controls.empty()) {
-            qDebug() << "control count:" << info.controls.size() << "control:" << info.controls[info.controls.size() - 1].name;
+            qDebug() << "control count:" << info.controls.size()
+                     << "control:" << info.controls[info.controls.size() - 1].name;
             data->resultRect = info.controls[info.controls.size() - 1].bounds;
         } else {
             data->resultRect = windowRect;
@@ -120,15 +154,24 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
-QRect ScreenCapture::getControlRect(const QPoint &pos)
+QRect ScreenCapture::getControlRect(HWND hwnd, const QPoint &pos)
 {
-    EnumWindowsData data;
-    data.pos = pos;
-    data.selfHwnd = (HWND) this->winId();
-    data.automation = automation;
-    data.found = false;
+    WindowInfo info = automation->getWindowControls(hwnd, pos);
+    if (!info.controls.empty()) {
+        qDebug() << "control count:" << info.controls.size()
+                 << "control:" << info.controls[info.controls.size() - 1].name;
+        return info.controls[info.controls.size() - 1].bounds;
+    } else {
+        return QRect();
+    }
 
-    EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&data));
+    //    EnumWindowsData data;
+    //    data.pos = pos;
+    //    data.selfHwnd = (HWND) this->winId();
+    //    data.automation = automation;
+    //    data.found = false;
 
-    return data.found ? data.resultRect : QRect();
+    //    EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&data));
+
+    //    return data.found ? data.resultRect : QRect();
 }
