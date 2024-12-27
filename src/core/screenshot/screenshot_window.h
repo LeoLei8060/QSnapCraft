@@ -1,8 +1,11 @@
 #pragma once
 
+#include "magnifier.h"
 #include "utils/mousehook.h"
 #include "utils/uiinspector.h"
 
+#include <windows.h>
+#include <QCursor>
 #include <QImage>
 #include <QPixmap>
 #include <QWidget>
@@ -13,16 +16,18 @@ class ScreenshotWindow : public QWidget
 
 public:
     explicit ScreenshotWindow(QWidget *parent = nullptr);
-    ~ScreenshotWindow() override = default;
+    ~ScreenshotWindow() override;
 
-public slots:
-    void start();
-    void quit();
+    void start(); // 开始截图
+    void quit();  // 退出截图
 
 protected:
     void paintEvent(QPaintEvent *event) override;
 
-    void captureFullScreens();
+    void   captureFullScreens();
+    void   drawMagnifier(QPainter &painter, const QPoint &pos);
+    void   drawInfoText(QPainter &painter, const QPoint &pos);
+    QColor getColorAtPos(const QPoint &pos);
 
 private slots:
     void onMouseMove(const POINT &pt);
@@ -32,9 +37,19 @@ private slots:
     void onRButtonUp(const POINT &pt);
 
 private:
-    QImage m_screenShot;
-    QRect  m_highlightRect;
+    void setCustomCursor();
+    void restoreCursor();
+
+    QImage  m_screenShot;
+    QRect   m_highlightRect;
+    QCursor m_originalCursor;
+    bool    m_isActive{false}; // 截图工具是否激活
+    bool    m_blockSetCursor;
+
+    static const int MAGNIFIER_SIZE;
+    static const int MAGNIFIER_SCALE;
 
     MouseHook   m_mouseHook;
     UIInspector m_inspector;
+    Magnifier  *m_magnifier; // 放大镜组件
 };

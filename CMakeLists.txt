@@ -7,13 +7,21 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
+
+add_subdirectory(src/hooks)
 
 set(PROJECT_SOURCES
     src/main.cpp
     src/core/screenshot/screenshot_window.h
     src/core/screenshot/screenshot_window.cpp
+    src/core/screenshot/magnifier.h
+    src/core/screenshot/magnifier.cpp
     src/core/editor/editor_window.h
     src/core/editor/editor_window.cpp
     src/core/pinboard/pin_window.h
@@ -38,6 +46,7 @@ add_executable(QSnapCraft
 target_link_libraries(QSnapCraft PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
+    hooks
 )
 
 target_include_directories(QSnapCraft PRIVATE

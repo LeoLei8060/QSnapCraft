@@ -1,5 +1,4 @@
-#ifndef MOUSEHOOK_H
-#define MOUSEHOOK_H
+#pragma once
 
 #include <windows.h>
 #include <QObject>
@@ -7,12 +6,16 @@
 class MouseHook : public QObject
 {
     Q_OBJECT
+
 public:
     explicit MouseHook(QObject *parent = nullptr);
-    ~MouseHook();
+    ~MouseHook() override;
 
     void install();
     void uninstall();
+    void setCursorStyle(LPCTSTR cursorName);
+
+    static LRESULT CALLBACK mouseProc(int code, WPARAM wParam, LPARAM lParam);
 
 signals:
     void mouseMove(const POINT &pt);
@@ -22,9 +25,6 @@ signals:
     void buttonRUp(const POINT &pt);
 
 private:
-    static LRESULT CALLBACK mouseProc(int nCode, WPARAM wParam, LPARAM lParam);
-    static MouseHook       *instance;
-    HHOOK                   m_hook;
+    HHOOK             m_mouseHook;
+    static MouseHook *instance;
 };
-
-#endif

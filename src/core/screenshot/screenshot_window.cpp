@@ -1,22 +1,29 @@
 #include "screenshot_window.h"
+#include <windows.h>
 #include <QApplication>
 #include <QDebug>
-#include <QKeyEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
 
 ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     : QWidget(parent)
+    , m_magnifier(new Magnifier)
 {
+    // 设置窗口属性
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
-                   | Qt::WindowTransparentForInput | Qt::Tool);
+                   | Qt::WindowTransparentForInput | Qt::CoverWindow);
 
     connect(&m_mouseHook, &MouseHook::mouseMove, this, &ScreenshotWindow::onMouseMove);
     connect(&m_mouseHook, &MouseHook::buttonLDown, this, &ScreenshotWindow::onLButtonDown);
     connect(&m_mouseHook, &MouseHook::buttonLUp, this, &ScreenshotWindow::onLButtonUp);
     connect(&m_mouseHook, &MouseHook::buttonRDown, this, &ScreenshotWindow::onRButtonDown);
     connect(&m_mouseHook, &MouseHook::buttonRUp, this, &ScreenshotWindow::onRButtonUp);
+}
+
+ScreenshotWindow::~ScreenshotWindow()
+{
+    delete m_magnifier;
 }
 
 void ScreenshotWindow::start()
@@ -28,6 +35,7 @@ void ScreenshotWindow::start()
 
     setGeometry(left, top, screenWidth, screenHeight);
 
+    // 捕获全屏图像
     captureFullScreens();
 
     show();
@@ -36,15 +44,20 @@ void ScreenshotWindow::start()
 
 void ScreenshotWindow::quit()
 {
+    // 退出截图工具
     m_mouseHook.uninstall();
     hide();
 }
 
 void ScreenshotWindow::paintEvent(QPaintEvent *event)
 {
+    Q_UNUSED(event)
     QPainter painter(this);
+
+    // 绘制背景截图
     painter.drawImage(0, 0, m_screenShot);
 
+    // 添加半透明遮罩
     if (m_highlightRect.isValid()) {
         QPainterPath windowPath;
         windowPath.addRect(rect());
@@ -59,6 +72,9 @@ void ScreenshotWindow::paintEvent(QPaintEvent *event)
         painter.setPen(QPen(Qt::red, 2));
         painter.drawRect(m_highlightRect);
     }
+
+    // 绘制放大镜
+    m_magnifier->paint(painter, m_screenShot, QCursor::pos());
 }
 
 void ScreenshotWindow::captureFullScreens()

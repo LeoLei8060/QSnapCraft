@@ -1,10 +1,12 @@
 #include "mousehook.h"
+#include "../hooks/hooks.h"
+#include <QDebug>
 
 MouseHook *MouseHook::instance = nullptr;
 
 MouseHook::MouseHook(QObject *parent)
     : QObject(parent)
-    , m_hook(NULL)
+    , m_mouseHook(NULL)
 {
     instance = this;
 }
@@ -16,23 +18,34 @@ MouseHook::~MouseHook()
 
 void MouseHook::install()
 {
-    if (m_hook)
-        return;
+    if (!m_mouseHook) {
+        m_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, mouseProc, GetModuleHandle(NULL), 0);
+        if (m_mouseHook) {
+            qDebug() << "Mouse hook installed successfully";
+        }
+    }
 
-    m_hook = SetWindowsHookEx(WH_MOUSE_LL, mouseProc, GetModuleHandle(NULL), 0);
+    // 调用hooks DLL中的接口，因为全局的WH_CALLWNDPROC钩子必须封装在单独的DLL中
+    if (!InstallHooks()) {
+        DWORD error = GetLastError();
+        qDebug() << "Global hook installation failed with error:" << error;
+    } else {
+        qDebug() << "Global hook installed successfully";
+    }
 }
 
 void MouseHook::uninstall()
 {
-    if (m_hook) {
-        UnhookWindowsHookEx(m_hook);
-        m_hook = NULL;
+    if (m_mouseHook) {
+        UnhookWindowsHookEx(m_mouseHook);
+        m_mouseHook = NULL;
     }
+    UninstallHooks();
 }
 
-LRESULT CALLBACK MouseHook::mouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MouseHook::mouseProc(int code, WPARAM wParam, LPARAM lParam)
 {
-    if (nCode >= 0 && instance) {
+    if (code >= 0 && instance) {
         MSLLHOOKSTRUCT *pMouseStruct = (MSLLHOOKSTRUCT *) lParam;
         POINT           pt = pMouseStruct->pt;
 
@@ -54,6 +67,5 @@ LRESULT CALLBACK MouseHook::mouseProc(int nCode, WPARAM wParam, LPARAM lParam)
             return 1;
         }
     }
-
-    return CallNextHookEx(NULL, nCode, wParam, lParam);
+    return CallNextHookEx(NULL, code, wParam, lParam);
 }
