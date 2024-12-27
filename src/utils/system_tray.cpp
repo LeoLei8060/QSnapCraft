@@ -46,5 +46,5 @@ void SystemTray::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason)
 
 void SystemTray::startScreenshot()
 {
-    emit screenshotAction->triggered();
+    //    emit screenshotAction->triggered();
 }
