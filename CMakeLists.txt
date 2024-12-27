@@ -26,6 +26,8 @@ set(PROJECT_SOURCES
     src/utils/uiinspector.cpp
     src/utils/SingleApplication.h
     src/utils/SingleApplication.cpp
+    src/utils/mousehook.h
+    src/utils/mousehook.cpp
     resources/resources.qrc
 )
 
