@@ -1,15 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "screencapture.h"
-#include "uiautomation.h"
-#include <QFileDialog>
-#include <QHBoxLayout>
-#include <QListWidget>
+#include "mousehook.h"
+#include "uiinspector.h"
 #include <QMainWindow>
-#include <QPushButton>
-#include <QTreeWidget>
-#include <QVBoxLayout>
+#include <QPixmap>
+#include <QScreen>
 
 class MainWindow : public QMainWindow
 {
@@ -19,16 +15,23 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void paintEvent(QPaintEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+
 private slots:
-    void startScreenshot();
-    void onCaptureCompleted(const QPixmap &pixmap);
+    void onMouseMove(const POINT &pt);
+    void onLButtonDown(const POINT &pt);
+    void onLButtonUp(const POINT &pt);
+    void onRButtonDown(const POINT &pt);
+    void onRButtonUp(const POINT &pt);
 
 private:
-    void setupUI();
+    QPixmap     m_screenShot;
+    UIInspector m_inspector;
+    MouseHook   m_mouseHook;
 
-    QPushButton   *screenshotButton;
-    UIAutomation  *automation;
-    ScreenCapture *screencapture;
+    QRect m_highlightRect;
 };
 
-#endif // MAINWINDOW_H
+#endif
