@@ -9,10 +9,13 @@
 ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     : QWidget(parent)
     , m_magnifier(new Magnifier)
+    , m_isDragging(false)
+    , m_smartInspect(false)
+    , m_state(State::Finished)
 {
     // 设置窗口属性
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
-                   | Qt::WindowTransparentForInput | Qt::CoverWindow);
+                   | Qt::WindowTransparentForInput | Qt::Tool);
 
     connect(&m_mouseHook, &MouseHook::mouseMove, this, &ScreenshotWindow::onMouseMove);
     connect(&m_mouseHook, &MouseHook::buttonLDown, this, &ScreenshotWindow::onLButtonDown);
@@ -38,13 +41,15 @@ void ScreenshotWindow::start()
     // 捕获全屏图像
     captureFullScreens();
 
+    activateScreenCapture();
     show();
-    m_mouseHook.install();
 }
 
 void ScreenshotWindow::quit()
 {
     // 退出截图工具
+    m_smartInspect = false;
+    m_state = State::Finished;
     m_mouseHook.uninstall();
     hide();
 }
@@ -55,10 +60,10 @@ void ScreenshotWindow::paintEvent(QPaintEvent *event)
     QPainter painter(this);
 
     // 绘制背景截图
-    painter.drawImage(0, 0, m_screenShot);
-
-    // 添加半透明遮罩
     if (m_highlightRect.isValid()) {
+        painter.drawImage(0, 0, m_screenShot);
+
+        // 添加半透明遮罩
         QPainterPath windowPath;
         windowPath.addRect(rect());
 
@@ -157,17 +162,82 @@ void ScreenshotWindow::captureFullScreens()
 
 void ScreenshotWindow::onMouseMove(const POINT &pt)
 {
-    m_highlightRect = m_inspector.quickInspect(pt);
+    if (m_isDragging) {
+        // 如果正在拖拽，更新选择区域
+        QPoint currentPos(pt.x, pt.y);
+        m_highlightRect = QRect(m_dragStartPos, currentPos).normalized();
+    } else if (m_smartInspect) {
+        // 智能检测模式下进行UI组件检测
+        m_highlightRect = m_inspector.quickInspect(pt);
+    }
     update();
 }
 
-void ScreenshotWindow::onLButtonDown(const POINT &pt) {}
+void ScreenshotWindow::onLButtonDown(const POINT &pt)
+{
+    // 记录拖拽起始位置
+    m_dragStartPos = QPoint(pt.x, pt.y);
+    m_isDragging = true;
 
-void ScreenshotWindow::onLButtonUp(const POINT &pt) {}
+    // 关闭智能检测
+    m_smartInspect = false;
 
-void ScreenshotWindow::onRButtonDown(const POINT &pt) {}
+    // 清除智能检测的区域
+    m_highlightRect = QRect();
+    update();
+}
+
+void ScreenshotWindow::onLButtonUp(const POINT &pt)
+{
+    if (m_isDragging) {
+        m_isDragging = false;
+        // 完成拖拽，更新最终区域
+        QPoint endPos(pt.x, pt.y);
+        if (endPos != m_dragStartPos) {
+            m_highlightRect = QRect(m_dragStartPos, endPos).normalized();
+        }
+        m_shotRect = m_highlightRect;
+        // 切换到编辑状态
+        activateScreenEdit();
+    }
+}
+
+void ScreenshotWindow::onRButtonDown(const POINT &pt)
+{
+    // 如果在编辑状态，返回截屏状态
+    if (m_state == State::Editing) {
+        activateScreenCapture();
+    } else {
+        // 否则退出截图
+        quit();
+    }
+}
 
 void ScreenshotWindow::onRButtonUp(const POINT &pt)
 {
     quit();
+}
+
+void ScreenshotWindow::activateScreenCapture()
+{
+    setWindowFlags(windowFlags() | Qt::WindowTransparentForInput);
+    m_shotRect = QRect();
+    m_highlightRect = QRect();
+    // 开启智能检测
+    m_smartInspect = true;
+    // 设置为截屏状态
+    m_state = State::Capturing;
+    // 安装钩子
+    m_mouseHook.install();
+}
+
+void ScreenshotWindow::activateScreenEdit()
+{
+    m_smartInspect = false;
+
+    m_state = State::Editing;
+
+    setWindowFlags(windowFlags() & ~Qt::WindowTransparentForInput);
+
+    //    m_mouseHook.uninstall();
 }
