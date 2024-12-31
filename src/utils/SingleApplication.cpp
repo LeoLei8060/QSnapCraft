@@ -1,8 +1,8 @@
 #include "SingleApplication.h"
-#include "core/editor/editor_window.h"
-#include "core/screenshot/screenshot_window.h"
-#include "shortcut_manager.h"
-#include "system_tray.h"
+#include "core/editor/editorwindow.h"
+#include "core/screenshot/screenshotwindow.h"
+#include "shortcutmanager.h"
+#include "systemtray.h"
 #include <QDataStream>
 #include <QDebug>
 #include <QLocalSocket>

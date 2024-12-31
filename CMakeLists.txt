@@ -18,28 +18,28 @@ add_subdirectory(src/hooks)
 
 set(PROJECT_SOURCES
     src/main.cpp
-    src/core/screenshot/screenshot_window.h
-    src/core/screenshot/screenshot_window.cpp
-    src/core/editor/editor_window.h
-    src/core/editor/editor_window.cpp
+    src/core/screenshot/screenshotwindow.h
+    src/core/screenshot/screenshotwindow.cpp
+    src/core/editor/editorwindow.h
+    src/core/editor/editorwindow.cpp
     src/core/editor/toolbar.h
     src/core/editor/toolbar.cpp
-    src/core/pinboard/pin_window.h
-    src/core/pinboard/pin_window.cpp
-    src/utils/system_tray.h
-    src/utils/system_tray.cpp
-    src/utils/shortcut_manager.h
-    src/utils/shortcut_manager.cpp
+    src/core/pinboard/pinwindow.h
+    src/core/pinboard/pinwindow.cpp
+    src/utils/systemtray.h
+    src/utils/systemtray.cpp
+    src/utils/shortcutmanager.h
+    src/utils/shortcutmanager.cpp
     src/utils/uiinspector.h
     src/utils/uiinspector.cpp
-    src/utils/SingleApplication.h
-    src/utils/SingleApplication.cpp
+    src/utils/singleapplication.h
+    src/utils/singleapplication.cpp
     src/utils/mousehook.h
     src/utils/mousehook.cpp
     src/utils/magnifier.h
     src/utils/magnifier.cpp
-    src/utils/FontManager.cpp
-    src/utils/FontManager.h
+    src/utils/fontmanager.cpp
+    src/utils/fontmanager.h
     resources/resources.qrc
 )
 

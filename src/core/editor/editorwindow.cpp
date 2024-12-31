@@ -1,15 +1,15 @@
-#include "editor_window.h"
+#include "editorwindow.h"
 #include <windows.h>
 #include <QApplication>
+#include <QDateTime>
 #include <QDebug>
+#include <QFileDialog>
+#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
-#include <QFileDialog>
-#include <QMessageBox>
 #include <QStandardPaths>
-#include <QDateTime>
 
 EditorWindow::EditorWindow(QWidget *parent)
     : QWidget(parent)
@@ -24,13 +24,13 @@ EditorWindow::EditorWindow(QWidget *parent)
     m_toolbar.show();
 
     const auto screens = QGuiApplication::screens();
-    for (const auto* screen : screens) {
-        m_screenGeometries[const_cast<QScreen*>(screen)] = screen->geometry();
+    for (const auto *screen : screens) {
+        m_screenGeometries[const_cast<QScreen *>(screen)] = screen->geometry();
         m_totalGeometry = m_totalGeometry.united(screen->geometry());
     }
     setGeometry(m_totalGeometry);
 
-    for (auto* screen : screens) {
+    for (auto *screen : screens) {
         connect(screen, &QScreen::geometryChanged, this, [this, screen](const QRect &geometry) {
             m_screenGeometries[screen] = geometry;
             m_totalGeometry = QRect();
@@ -61,7 +61,7 @@ void EditorWindow::updateToolbarPosition()
 {
     const int toolbarWidth = m_toolbar.width();
     const int toolbarHeight = m_toolbar.height();
-    const int spacing = 8;  
+    const int spacing = 8;
 
     int x = m_captureRect.right() - toolbarWidth;
     int y = m_captureRect.bottom() + spacing;
@@ -78,7 +78,7 @@ void EditorWindow::updateToolbarPosition()
     }
 
     m_toolbar.move(x, y);
-    m_toolbar.raise();  
+    m_toolbar.raise();
 }
 
 void EditorWindow::onToolSelected(Toolbar::Tool tool)
@@ -94,7 +94,7 @@ void EditorWindow::onToolSelected(Toolbar::Tool tool)
         // TODO: 实现贴到屏幕功能
         break;
     case Toolbar::Tool::Exit:
-        close();  // 关闭窗口
+        close(); // 关闭窗口
         break;
     default:
         // 其他工具的处理...
@@ -106,13 +106,12 @@ QString EditorWindow::getSaveFilePath()
 {
     QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     QString defaultName = QString("screenshot_%1.png")
-                             .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
-    
-    return QFileDialog::getSaveFileName(
-        this,
-        tr("Save Screenshot"),
-        defaultPath + "/" + defaultName,
-        tr("Images (*.png *.jpg *.bmp)"));
+                              .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+
+    return QFileDialog::getSaveFileName(this,
+                                        tr("Save Screenshot"),
+                                        defaultPath + "/" + defaultName,
+                                        tr("Images (*.png *.jpg *.bmp)"));
 }
 
 void EditorWindow::saveImage()
@@ -127,10 +126,7 @@ void EditorWindow::saveImage()
 
     // 保存图像
     if (!saveImage.save(filePath)) {
-        QMessageBox::critical(
-            this,
-            tr("Error"),
-            tr("Failed to save the image to %1").arg(filePath));
+        QMessageBox::critical(this, tr("Error"), tr("Failed to save the image to %1").arg(filePath));
         return;
     }
 
@@ -198,58 +194,58 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     QRect handleRect;
 
     handleRect = QRect(m_captureRect.topLeft().x() - handleSize / 2,
-                      m_captureRect.topLeft().y() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.topLeft().y() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::TopLeft;
 
     handleRect = QRect(m_captureRect.center().x() - handleSize / 2,
-                      m_captureRect.top() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.top() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::Top;
 
     handleRect = QRect(m_captureRect.topRight().x() - handleSize / 2,
-                      m_captureRect.topRight().y() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.topRight().y() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::TopRight;
 
     handleRect = QRect(m_captureRect.right() - handleSize / 2,
-                      m_captureRect.center().y() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.center().y() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::Right;
 
     handleRect = QRect(m_captureRect.bottomRight().x() - handleSize / 2,
-                      m_captureRect.bottomRight().y() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.bottomRight().y() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::BottomRight;
 
     handleRect = QRect(m_captureRect.center().x() - handleSize / 2,
-                      m_captureRect.bottom() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.bottom() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::Bottom;
 
     handleRect = QRect(m_captureRect.bottomLeft().x() - handleSize / 2,
-                      m_captureRect.bottomLeft().y() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.bottomLeft().y() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::BottomLeft;
 
     handleRect = QRect(m_captureRect.left() - handleSize / 2,
-                      m_captureRect.center().y() - handleSize / 2,
-                      handleSize,
-                      handleSize);
+                       m_captureRect.center().y() - handleSize / 2,
+                       handleSize,
+                       handleSize);
     if (handleRect.contains(pos))
         return ResizeHandle::Left;
 
@@ -322,7 +318,7 @@ void EditorWindow::adjustRect(const QPoint &pos)
     if (!m_isDragging)
         return;
 
-    QRect newRect = m_captureRect;
+    QRect  newRect = m_captureRect;
     QPoint delta = pos - m_dragStartPos;
 
     switch (m_currentHandle) {
@@ -357,7 +353,7 @@ void EditorWindow::adjustRect(const QPoint &pos)
         break;
     }
 
-    QScreen* screen = QGuiApplication::screenAt(pos);
+    QScreen *screen = QGuiApplication::screenAt(pos);
     if (!screen) {
         screen = QGuiApplication::primaryScreen();
     }
@@ -372,8 +368,8 @@ void EditorWindow::adjustRect(const QPoint &pos)
         if (newRect.bottom() > m_totalGeometry.bottom())
             newRect.moveBottom(m_totalGeometry.bottom());
     } else {
-        const QRect& screenRect = m_screenGeometries[screen];
-        
+        const QRect &screenRect = m_screenGeometries[screen];
+
         switch (m_currentHandle) {
         case ResizeHandle::TopLeft:
         case ResizeHandle::Top:
@@ -411,13 +407,15 @@ void EditorWindow::adjustRect(const QPoint &pos)
 
     static const int MIN_SIZE = 10;
     if (newRect.width() < MIN_SIZE) {
-        if (m_currentHandle == ResizeHandle::Left || m_currentHandle == ResizeHandle::TopLeft || m_currentHandle == ResizeHandle::BottomLeft)
+        if (m_currentHandle == ResizeHandle::Left || m_currentHandle == ResizeHandle::TopLeft
+            || m_currentHandle == ResizeHandle::BottomLeft)
             newRect.setLeft(newRect.right() - MIN_SIZE);
         else
             newRect.setRight(newRect.left() + MIN_SIZE);
     }
     if (newRect.height() < MIN_SIZE) {
-        if (m_currentHandle == ResizeHandle::Top || m_currentHandle == ResizeHandle::TopLeft || m_currentHandle == ResizeHandle::TopRight)
+        if (m_currentHandle == ResizeHandle::Top || m_currentHandle == ResizeHandle::TopLeft
+            || m_currentHandle == ResizeHandle::TopRight)
             newRect.setTop(newRect.bottom() - MIN_SIZE);
         else
             newRect.setBottom(newRect.top() + MIN_SIZE);

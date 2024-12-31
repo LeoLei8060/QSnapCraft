@@ -1,10 +1,10 @@
-#include "FontManager.h"
-#include <QFontDatabase>
+#include "fontmanager.h"
 #include <QDebug>
+#include <QFontDatabase>
 
-FontManager* FontManager::s_instance = nullptr;
+FontManager *FontManager::s_instance = nullptr;
 
-FontManager* FontManager::instance()
+FontManager *FontManager::instance()
 {
     if (!s_instance) {
         s_instance = new FontManager();
@@ -14,8 +14,7 @@ FontManager* FontManager::instance()
 
 FontManager::FontManager(QObject *parent)
     : QObject(parent)
-{
-}
+{}
 
 bool FontManager::addThirdpartyFont(const QString &path, int type)
 {

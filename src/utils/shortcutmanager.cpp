@@ -1,4 +1,4 @@
-#include "shortcut_manager.h"
+#include "shortcutmanager.h"
 #include <QApplication>
 #include <QDebug>
 
@@ -38,8 +38,7 @@ bool ShortcutManager::nativeEventFilter(const QByteArray &eventType, void *messa
             if (msg->wParam == SCREENSHOT_HOTKEY_ID) {
                 emit screenshotTriggered();
                 return true;
-            }
-            else if (msg->wParam == ESCAPE_HOTKEY_ID) {
+            } else if (msg->wParam == ESCAPE_HOTKEY_ID) {
                 emit escapePressed();
                 return true;
             }

@@ -1,4 +1,4 @@
-#include "system_tray.h"
+#include "systemtray.h"
 #include <QApplication>
 
 SystemTray::SystemTray(QObject *parent)

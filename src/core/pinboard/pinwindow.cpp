@@ -1,4 +1,4 @@
-#include "pin_window.h"
+#include "pinwindow.h"
 
 PinWindow::PinWindow(QWidget *parent)
     : QWidget(parent)

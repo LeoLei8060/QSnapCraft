@@ -1,5 +1,5 @@
 #include "toolbar.h"
-#include "../../utils/FontManager.h"
+#include "../../utils/fontmanager.h"
 #include <QDebug>
 #include <QFrame>
 #include <QHBoxLayout>
