@@ -1,0 +1,177 @@
+{
+  "id": "4799585",
+  "name": "截屏软件（开源）",
+  "font_family": "SnapCraftIconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "10048835",
+      "name": "矩形",
+      "font_class": "juxing",
+      "unicode": "e622",
+      "unicode_decimal": 58914
+    },
+    {
+      "icon_id": "11468160",
+      "name": "椭圆",
+      "font_class": "tuoyuan",
+      "unicode": "e610",
+      "unicode_decimal": 58896
+    },
+    {
+      "icon_id": "1288607",
+      "name": "关闭",
+      "font_class": "guanbi",
+      "unicode": "e607",
+      "unicode_decimal": 58887
+    },
+    {
+      "icon_id": "1422712",
+      "name": "复制",
+      "font_class": "fuzhi",
+      "unicode": "e60b",
+      "unicode_decimal": 58891
+    },
+    {
+      "icon_id": "1615712",
+      "name": "撤销",
+      "font_class": "chexiao",
+      "unicode": "e619",
+      "unicode_decimal": 58905
+    },
+    {
+      "icon_id": "1617961",
+      "name": "重做",
+      "font_class": "zhongzuo",
+      "unicode": "e62c",
+      "unicode_decimal": 58924
+    },
+    {
+      "icon_id": "4606788",
+      "name": "形状",
+      "font_class": "xingzhuang",
+      "unicode": "e678",
+      "unicode_decimal": 59000
+    },
+    {
+      "icon_id": "7896706",
+      "name": "马赛克",
+      "font_class": "masaike",
+      "unicode": "e613",
+      "unicode_decimal": 58899
+    },
+    {
+      "icon_id": "10451666",
+      "name": "基本折线图",
+      "font_class": "jibenzhexiantu",
+      "unicode": "e621",
+      "unicode_decimal": 58913
+    },
+    {
+      "icon_id": "10451680",
+      "name": "基本折线图",
+      "font_class": "jibenzhexiantu1",
+      "unicode": "e627",
+      "unicode_decimal": 58919
+    },
+    {
+      "icon_id": "11121385",
+      "name": "文本框",
+      "font_class": "wenbenkuang",
+      "unicode": "e629",
+      "unicode_decimal": 58921
+    },
+    {
+      "icon_id": "12004754",
+      "name": "复制",
+      "font_class": "fuzhi1",
+      "unicode": "e620",
+      "unicode_decimal": 58912
+    },
+    {
+      "icon_id": "12425416",
+      "name": "长箭头",
+      "font_class": "bottom",
+      "unicode": "e600",
+      "unicode_decimal": 58880
+    },
+    {
+      "icon_id": "17772909",
+      "name": "画笔",
+      "font_class": "huabi",
+      "unicode": "e632",
+      "unicode_decimal": 58930
+    },
+    {
+      "icon_id": "18171136",
+      "name": "橡皮,擦除,橡皮擦",
+      "font_class": "rubber-full",
+      "unicode": "ea15",
+      "unicode_decimal": 59925
+    },
+    {
+      "icon_id": "26393546",
+      "name": "icon_橡皮擦",
+      "font_class": "icon_xiangpica",
+      "unicode": "e657",
+      "unicode_decimal": 58967
+    },
+    {
+      "icon_id": "26529294",
+      "name": "img_xingzhuang",
+      "font_class": "xingzhuang1",
+      "unicode": "e608",
+      "unicode_decimal": 58888
+    },
+    {
+      "icon_id": "28025279",
+      "name": "形状",
+      "font_class": "xingzhuang2",
+      "unicode": "e76f",
+      "unicode_decimal": 59247
+    },
+    {
+      "icon_id": "33033918",
+      "name": "形状",
+      "font_class": "xingzhuang3",
+      "unicode": "e7bb",
+      "unicode_decimal": 59323
+    },
+    {
+      "icon_id": "34198323",
+      "name": "文本",
+      "font_class": "wenben",
+      "unicode": "e854",
+      "unicode_decimal": 59476
+    },
+    {
+      "icon_id": "34453251",
+      "name": "pin-fill",
+      "font_class": "pin-fill",
+      "unicode": "e863",
+      "unicode_decimal": 59491
+    },
+    {
+      "icon_id": "38587457",
+      "name": "记号笔",
+      "font_class": "jihaobi",
+      "unicode": "e81b",
+      "unicode_decimal": 59419
+    },
+    {
+      "icon_id": "40215478",
+      "name": "马赛克",
+      "font_class": "masaike1",
+      "unicode": "e70f",
+      "unicode_decimal": 59151
+    },
+    {
+      "icon_id": "42198031",
+      "name": "save-3-fill",
+      "font_class": "save-3-fill",
+      "unicode": "e782",
+      "unicode_decimal": 59266
+    }
+  ]
+}
