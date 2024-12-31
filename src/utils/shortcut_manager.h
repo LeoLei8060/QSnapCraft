@@ -18,10 +18,12 @@ public:
 
 signals:
     void screenshotTriggered();
+    void escapePressed();
 
 private:
     void registerHotKey();
     void unregisterHotKey();
 
-    static const int HOTKEY_ID = 1;
+    static const int SCREENSHOT_HOTKEY_ID = 1;
+    static const int ESCAPE_HOTKEY_ID = 2;
 };

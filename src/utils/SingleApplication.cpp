@@ -117,15 +117,33 @@ void SingleApplication::receiveMessage()
 
 void SingleApplication::initialize()
 {
-    systemTray_ = std::make_unique<SystemTray>();
-    systemTray_->show();
+    if (!isRunning()) {
+        systemTray_ = std::make_unique<SystemTray>();
+        shortcutManager_ = std::make_unique<ShortcutManager>();
 
-    shortcutManager_ = std::make_unique<ShortcutManager>();
+        connect(shortcutManager_.get(),
+                &ShortcutManager::screenshotTriggered,
+                this,
+                &SingleApplication::startScreenshot);
 
-    connect(shortcutManager_.get(),
-            &ShortcutManager::screenshotTriggered,
-            this,
-            &SingleApplication::startScreenshot);
+        connect(shortcutManager_.get(),
+                &ShortcutManager::escapePressed,
+                this,
+                &SingleApplication::quit);
+
+        systemTray_->show();
+    }
+}
+
+void SingleApplication::quit()
+{
+    if (m_screenshotWindow) {
+        m_screenshotWindow->quit();
+    }
+    if (m_editWindow) {
+        m_editWindow->hide();
+    }
+    QApplication::quit();
 }
 
 void SingleApplication::startScreenshot()

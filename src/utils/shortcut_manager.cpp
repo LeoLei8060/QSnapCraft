@@ -16,14 +16,18 @@ ShortcutManager::~ShortcutManager()
 
 void ShortcutManager::registerHotKey()
 {
-    if (!RegisterHotKey(nullptr, HOTKEY_ID, 0, VK_F2)) {
-        qDebug() << "Failed to register hotkey";
+    if (!RegisterHotKey(nullptr, SCREENSHOT_HOTKEY_ID, 0, VK_F2)) {
+        qDebug() << "Failed to register F2 hotkey";
+    }
+    if (!RegisterHotKey(nullptr, ESCAPE_HOTKEY_ID, 0, VK_ESCAPE)) {
+        qDebug() << "Failed to register ESC hotkey";
     }
 }
 
 void ShortcutManager::unregisterHotKey()
 {
-    UnregisterHotKey(nullptr, HOTKEY_ID);
+    UnregisterHotKey(nullptr, SCREENSHOT_HOTKEY_ID);
+    UnregisterHotKey(nullptr, ESCAPE_HOTKEY_ID);
 }
 
 bool ShortcutManager::nativeEventFilter(const QByteArray &eventType, void *message, long *result)
@@ -31,8 +35,12 @@ bool ShortcutManager::nativeEventFilter(const QByteArray &eventType, void *messa
     if (eventType == "windows_generic_MSG" || eventType == "windows_dispatcher_MSG") {
         MSG *msg = static_cast<MSG *>(message);
         if (msg->message == WM_HOTKEY) {
-            if (msg->wParam == HOTKEY_ID) {
+            if (msg->wParam == SCREENSHOT_HOTKEY_ID) {
                 emit screenshotTriggered();
+                return true;
+            }
+            else if (msg->wParam == ESCAPE_HOTKEY_ID) {
+                emit escapePressed();
                 return true;
             }
         }
