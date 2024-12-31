@@ -8,14 +8,13 @@
 
 ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     : QWidget(parent)
-    , m_magnifier(new Magnifier)
     , m_isDragging(false)
     , m_smartInspect(false)
     , m_state(State::Finished)
 {
     // 设置窗口属性
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
-                   | Qt::WindowTransparentForInput | Qt::Tool);
+                   | Qt::WindowTransparentForInput | Qt::CoverWindow);
 
     connect(&m_mouseHook, &MouseHook::mouseMove, this, &ScreenshotWindow::onMouseMove);
     connect(&m_mouseHook, &MouseHook::buttonLDown, this, &ScreenshotWindow::onLButtonDown);
@@ -24,10 +23,7 @@ ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     connect(&m_mouseHook, &MouseHook::buttonRUp, this, &ScreenshotWindow::onRButtonUp);
 }
 
-ScreenshotWindow::~ScreenshotWindow()
-{
-    delete m_magnifier;
-}
+ScreenshotWindow::~ScreenshotWindow() {}
 
 void ScreenshotWindow::start()
 {
@@ -79,7 +75,7 @@ void ScreenshotWindow::paintEvent(QPaintEvent *event)
     }
 
     // 绘制放大镜
-    m_magnifier->paint(painter, m_screenShot, QCursor::pos());
+    m_magnifier.paint(painter, m_screenShot, QCursor::pos());
 }
 
 void ScreenshotWindow::captureFullScreens()
@@ -182,8 +178,6 @@ void ScreenshotWindow::onLButtonDown(const POINT &pt)
     // 关闭智能检测
     m_smartInspect = false;
 
-    // 清除智能检测的区域
-    m_highlightRect = QRect();
     update();
 }
 
@@ -197,6 +191,7 @@ void ScreenshotWindow::onLButtonUp(const POINT &pt)
             m_highlightRect = QRect(m_dragStartPos, endPos).normalized();
         }
         m_shotRect = m_highlightRect;
+        qDebug() << __FUNCTION__ << m_shotRect << m_highlightRect;
         // 切换到编辑状态
         activateScreenEdit();
     }
@@ -220,7 +215,8 @@ void ScreenshotWindow::onRButtonUp(const POINT &pt)
 
 void ScreenshotWindow::activateScreenCapture()
 {
-    setWindowFlags(windowFlags() | Qt::WindowTransparentForInput);
+    //    setWindowFlags(windowFlags() | Qt::WindowTransparentForInput);
+    qDebug() << __FUNCTION__;
     m_shotRect = QRect();
     m_highlightRect = QRect();
     // 开启智能检测
@@ -233,11 +229,13 @@ void ScreenshotWindow::activateScreenCapture()
 
 void ScreenshotWindow::activateScreenEdit()
 {
+    qDebug() << __FUNCTION__ << m_shotRect;
     m_smartInspect = false;
 
     m_state = State::Editing;
 
-    setWindowFlags(windowFlags() & ~Qt::WindowTransparentForInput);
+    m_mouseHook.uninstall();
 
-    //    m_mouseHook.uninstall();
+    emit sigStartEdit();
+    hide();
 }

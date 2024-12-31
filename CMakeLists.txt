@@ -20,8 +20,6 @@ set(PROJECT_SOURCES
     src/main.cpp
     src/core/screenshot/screenshot_window.h
     src/core/screenshot/screenshot_window.cpp
-    src/core/screenshot/magnifier.h
-    src/core/screenshot/magnifier.cpp
     src/core/editor/editor_window.h
     src/core/editor/editor_window.cpp
     src/core/pinboard/pin_window.h
@@ -36,6 +34,8 @@ set(PROJECT_SOURCES
     src/utils/SingleApplication.cpp
     src/utils/mousehook.h
     src/utils/mousehook.cpp
+    src/utils/magnifier.h
+    src/utils/magnifier.cpp
     resources/resources.qrc
 )
 

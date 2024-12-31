@@ -1,8 +1,10 @@
 #include "SingleApplication.h"
+#include "core/editor/editor_window.h"
 #include "core/screenshot/screenshot_window.h"
 #include "shortcut_manager.h"
 #include "system_tray.h"
 #include <QDataStream>
+#include <QDebug>
 #include <QLocalSocket>
 
 SingleApplication::SingleApplication(int &argc, char **argv, const QString &appKey)
@@ -12,7 +14,7 @@ SingleApplication::SingleApplication(int &argc, char **argv, const QString &appK
     , localServer_(nullptr)
     , systemTray_(nullptr)
     , shortcutManager_(nullptr)
-    , screenshotWindow_(nullptr)
+    , m_screenshotWindow(nullptr)
 {
     initializeSharedMemory();
     initialize();
@@ -128,8 +130,24 @@ void SingleApplication::initialize()
 
 void SingleApplication::startScreenshot()
 {
-    if (!screenshotWindow_) {
-        screenshotWindow_ = std::make_unique<ScreenshotWindow>();
+    if (!m_screenshotWindow) {
+        m_screenshotWindow = std::make_unique<ScreenshotWindow>();
+        connect(m_screenshotWindow.get(),
+                &ScreenshotWindow::sigStartEdit,
+                this,
+                &SingleApplication::startEdit);
     }
-    screenshotWindow_->start();
+    m_screenshotWindow->start();
+}
+
+void SingleApplication::startEdit()
+{
+    if (!m_editWindow) {
+        m_editWindow = std::make_unique<EditorWindow>();
+    }
+    qDebug() << __FUNCTION__ << m_screenshotWindow->getCaptureRect();
+    m_editWindow->setData(m_screenshotWindow->getCaptureImage(),
+                          m_screenshotWindow->getCaptureRect());
+    SetCursor(LoadCursor(NULL, IDC_SIZEALL));
+    m_editWindow->show();
 }

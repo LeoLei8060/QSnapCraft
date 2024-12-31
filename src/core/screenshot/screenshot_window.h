@@ -1,6 +1,6 @@
 #pragma once
 
-#include "magnifier.h"
+#include "utils/magnifier.h"
 #include "utils/mousehook.h"
 #include "utils/uiinspector.h"
 
@@ -27,6 +27,12 @@ public:
 
     void start(); // 开始截图
     void quit();  // 退出截图
+
+    QImage getCaptureImage() const { return m_screenShot; }
+    QRect  getCaptureRect() const { return m_shotRect; }
+
+signals:
+    void sigStartEdit();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -62,7 +68,7 @@ private:
 
     MouseHook   m_mouseHook;
     UIInspector m_inspector;
-    Magnifier  *m_magnifier; // 放大镜组件
+    Magnifier   m_magnifier; // 放大镜组件
 
     static const int MAGNIFIER_SIZE;
     static const int MAGNIFIER_SCALE;
