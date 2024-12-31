@@ -134,6 +134,7 @@ QToolButton *Toolbar::createToolButton(Tool tool, const QString &iconText, const
         }
     )"));
 
+    // 连接按钮点击信号
     connect(button, &QToolButton::clicked, this, [this, tool]() {
         m_currentTool = tool;
         emit toolSelected(tool);

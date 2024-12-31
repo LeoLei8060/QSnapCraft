@@ -32,7 +32,6 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
-
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -45,17 +44,17 @@ private:
     void updateCursor(ResizeHandle handle);
     void adjustRect(const QPoint &pos);
     void updateToolbarPosition();
+    QString getSaveFilePath();  // 获取保存文件路径
+    void saveImage();          // 保存图像
 
     QImage m_currentImage;
     QRect  m_captureRect;
-
-    Magnifier m_magnifier;
-    Toolbar   m_toolbar;
-
-    bool m_isResizing{false};
+    Toolbar m_toolbar;
+    QMap<QScreen*, QRect> m_screenGeometries;
+    QRect m_totalGeometry;
     QPoint m_dragStartPos;
     ResizeHandle m_currentHandle{ResizeHandle::None};
-
-    QMap<QScreen*, QRect> m_screenGeometries;  // 存储所有屏幕的几何信息
-    QRect m_totalGeometry;  // 所有屏幕的总范围
+    bool m_isDragging{false};
+    bool m_modified{false};    // 图像是否被修改
+    Magnifier m_magnifier;     // 放大镜
 };

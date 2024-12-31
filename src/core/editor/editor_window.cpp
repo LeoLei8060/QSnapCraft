@@ -6,6 +6,10 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QStandardPaths>
+#include <QDateTime>
 
 EditorWindow::EditorWindow(QWidget *parent)
     : QWidget(parent)
@@ -15,10 +19,10 @@ EditorWindow::EditorWindow(QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose);
 
+    // 连接信号
     connect(&m_toolbar, &Toolbar::toolSelected, this, &EditorWindow::onToolSelected);
     m_toolbar.show();
 
-    // 初始化屏幕几何信息
     const auto screens = QGuiApplication::screens();
     for (const auto* screen : screens) {
         m_screenGeometries[const_cast<QScreen*>(screen)] = screen->geometry();
@@ -26,7 +30,6 @@ EditorWindow::EditorWindow(QWidget *parent)
     }
     setGeometry(m_totalGeometry);
 
-    // 监听屏幕变化
     for (auto* screen : screens) {
         connect(screen, &QScreen::geometryChanged, this, [this, screen](const QRect &geometry) {
             m_screenGeometries[screen] = geometry;
@@ -56,52 +59,83 @@ void EditorWindow::setData(const QImage &image, const QRect &captureRect)
 
 void EditorWindow::updateToolbarPosition()
 {
-    // 计算工具栏位置，默认在捕获区域右边右对齐
     const int toolbarWidth = m_toolbar.width();
     const int toolbarHeight = m_toolbar.height();
-    const int spacing = 8;  // 与捕获区域的间距
+    const int spacing = 8;  
 
-    // 默认位置：右对齐，在捕获区域下方
     int x = m_captureRect.right() - toolbarWidth;
     int y = m_captureRect.bottom() + spacing;
 
-    // 如果工具栏超出了总屏幕的右边界，左移工具栏
     if (x + toolbarWidth > m_totalGeometry.right()) {
         x = m_totalGeometry.right() - toolbarWidth;
     }
-    // 如果工具栏超出了总屏幕的左边界，右移工具栏
     if (x < m_totalGeometry.left()) {
         x = m_totalGeometry.left();
     }
 
-    // 如果工具栏超出了总屏幕的下边界，将工具栏移到捕获区域上方
     if (y + toolbarHeight > m_totalGeometry.bottom()) {
         y = m_captureRect.top() - toolbarHeight - spacing;
     }
 
     m_toolbar.move(x, y);
-    m_toolbar.raise();  // 确保工具栏总是在最上层
+    m_toolbar.raise();  
 }
 
 void EditorWindow::onToolSelected(Toolbar::Tool tool)
 {
     switch (tool) {
-    case Toolbar::Tool::Exit:
-        close();
-        break;
     case Toolbar::Tool::Copy:
         // TODO: 实现复制功能
         break;
     case Toolbar::Tool::Save:
-        // TODO: 实现保存功能
+        saveImage();
         break;
     case Toolbar::Tool::Pin:
         // TODO: 实现贴到屏幕功能
         break;
+    case Toolbar::Tool::Exit:
+        close();  // 关闭窗口
+        break;
     default:
-        // TODO: 处理其他工具
+        // 其他工具的处理...
         break;
     }
+}
+
+QString EditorWindow::getSaveFilePath()
+{
+    QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    QString defaultName = QString("screenshot_%1.png")
+                             .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+    
+    return QFileDialog::getSaveFileName(
+        this,
+        tr("Save Screenshot"),
+        defaultPath + "/" + defaultName,
+        tr("Images (*.png *.jpg *.bmp)"));
+}
+
+void EditorWindow::saveImage()
+{
+    QString filePath = getSaveFilePath();
+    if (filePath.isEmpty()) {
+        return; // 用户取消了保存操作
+    }
+
+    // 创建要保存的图像（仅包含捕获区域）
+    QImage saveImage = m_currentImage.copy(m_captureRect);
+
+    // 保存图像
+    if (!saveImage.save(filePath)) {
+        QMessageBox::critical(
+            this,
+            tr("Error"),
+            tr("Failed to save the image to %1").arg(filePath));
+        return;
+    }
+
+    // 保存成功后直接关闭窗口
+    close();
 }
 
 void EditorWindow::paintEvent(QPaintEvent *event)
@@ -109,11 +143,9 @@ void EditorWindow::paintEvent(QPaintEvent *event)
     Q_UNUSED(event)
     QPainter painter(this);
 
-    // 绘制背景截图
     if (m_captureRect.isValid()) {
         painter.drawImage(0, 0, m_currentImage);
 
-        // 添加半透明遮罩
         QPainterPath windowPath;
         windowPath.addRect(rect());
 
@@ -124,16 +156,13 @@ void EditorWindow::paintEvent(QPaintEvent *event)
 
         painter.fillPath(overlayPath, QColor(0, 0, 0, 128));
 
-        // 绘制选区边框
         painter.setPen(QPen(Qt::white, 2));
         painter.drawRect(m_captureRect);
 
-        // 绘制调整手柄
         const int handleSize = 8;
         painter.setBrush(Qt::white);
         painter.setPen(Qt::black);
 
-        // 绘制四个角落的手柄
         QVector<QPoint> corners = {m_captureRect.topLeft(),
                                    m_captureRect.topRight(),
                                    m_captureRect.bottomRight(),
@@ -146,7 +175,6 @@ void EditorWindow::paintEvent(QPaintEvent *event)
                                    handleSize));
         }
 
-        // 绘制四边的手柄
         QPoint midPoints[] = {QPoint(m_captureRect.left(), m_captureRect.center().y()),
                               QPoint(m_captureRect.right(), m_captureRect.center().y()),
                               QPoint(m_captureRect.center().x(), m_captureRect.top()),
@@ -160,7 +188,6 @@ void EditorWindow::paintEvent(QPaintEvent *event)
         }
     }
 
-    // 绘制放大镜
     m_magnifier.paint(painter, m_currentImage, QCursor::pos());
 }
 
@@ -168,10 +195,8 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
 {
     const int handleSize = 8;
 
-    // 检查是否在调整手柄区域内
     QRect handleRect;
 
-    // 左上角
     handleRect = QRect(m_captureRect.topLeft().x() - handleSize / 2,
                       m_captureRect.topLeft().y() - handleSize / 2,
                       handleSize,
@@ -179,7 +204,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::TopLeft;
 
-    // 上边
     handleRect = QRect(m_captureRect.center().x() - handleSize / 2,
                       m_captureRect.top() - handleSize / 2,
                       handleSize,
@@ -187,7 +211,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::Top;
 
-    // 右上角
     handleRect = QRect(m_captureRect.topRight().x() - handleSize / 2,
                       m_captureRect.topRight().y() - handleSize / 2,
                       handleSize,
@@ -195,7 +218,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::TopRight;
 
-    // 右边
     handleRect = QRect(m_captureRect.right() - handleSize / 2,
                       m_captureRect.center().y() - handleSize / 2,
                       handleSize,
@@ -203,7 +225,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::Right;
 
-    // 右下角
     handleRect = QRect(m_captureRect.bottomRight().x() - handleSize / 2,
                       m_captureRect.bottomRight().y() - handleSize / 2,
                       handleSize,
@@ -211,7 +232,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::BottomRight;
 
-    // 下边
     handleRect = QRect(m_captureRect.center().x() - handleSize / 2,
                       m_captureRect.bottom() - handleSize / 2,
                       handleSize,
@@ -219,7 +239,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::Bottom;
 
-    // 左下角
     handleRect = QRect(m_captureRect.bottomLeft().x() - handleSize / 2,
                       m_captureRect.bottomLeft().y() - handleSize / 2,
                       handleSize,
@@ -227,7 +246,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::BottomLeft;
 
-    // 左边
     handleRect = QRect(m_captureRect.left() - handleSize / 2,
                       m_captureRect.center().y() - handleSize / 2,
                       handleSize,
@@ -235,7 +253,6 @@ EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
     if (handleRect.contains(pos))
         return ResizeHandle::Left;
 
-    // 检查是否在选区内部
     if (m_captureRect.contains(pos))
         return ResizeHandle::Move;
 
@@ -275,7 +292,7 @@ void EditorWindow::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_dragStartPos = QCursor::pos();
         m_currentHandle = hitTest(m_dragStartPos);
-        m_isResizing = (m_currentHandle != ResizeHandle::None);
+        m_isDragging = (m_currentHandle != ResizeHandle::None);
     }
 }
 
@@ -283,7 +300,7 @@ void EditorWindow::mouseMoveEvent(QMouseEvent *event)
 {
     QPoint pos = QCursor::pos();
 
-    if (m_isResizing) {
+    if (m_isDragging) {
         adjustRect(pos);
     } else {
         ResizeHandle handle = hitTest(pos);
@@ -294,15 +311,15 @@ void EditorWindow::mouseMoveEvent(QMouseEvent *event)
 void EditorWindow::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
-        m_isResizing = false;
+        m_isDragging = false;
         m_currentHandle = ResizeHandle::None;
-        setCursor(Qt::ArrowCursor);
+        updateToolbarPosition();
     }
 }
 
 void EditorWindow::adjustRect(const QPoint &pos)
 {
-    if (!m_isResizing)
+    if (!m_isDragging)
         return;
 
     QRect newRect = m_captureRect;
@@ -340,14 +357,12 @@ void EditorWindow::adjustRect(const QPoint &pos)
         break;
     }
 
-    // 获取鼠标所在屏幕的几何信息
     QScreen* screen = QGuiApplication::screenAt(pos);
     if (!screen) {
         screen = QGuiApplication::primaryScreen();
     }
 
     if (m_currentHandle == ResizeHandle::Move) {
-        // 移动操作：确保在所有屏幕的总范围内
         if (newRect.left() < m_totalGeometry.left())
             newRect.moveLeft(m_totalGeometry.left());
         if (newRect.top() < m_totalGeometry.top())
@@ -357,10 +372,8 @@ void EditorWindow::adjustRect(const QPoint &pos)
         if (newRect.bottom() > m_totalGeometry.bottom())
             newRect.moveBottom(m_totalGeometry.bottom());
     } else {
-        // 调整大小操作：确保在当前屏幕内
         const QRect& screenRect = m_screenGeometries[screen];
         
-        // 根据拖动手柄的位置，限制矩形的调整范围
         switch (m_currentHandle) {
         case ResizeHandle::TopLeft:
         case ResizeHandle::Top:
@@ -396,7 +409,6 @@ void EditorWindow::adjustRect(const QPoint &pos)
         }
     }
 
-    // 确保矩形大小不会太小
     static const int MIN_SIZE = 10;
     if (newRect.width() < MIN_SIZE) {
         if (m_currentHandle == ResizeHandle::Left || m_currentHandle == ResizeHandle::TopLeft || m_currentHandle == ResizeHandle::BottomLeft)
@@ -411,7 +423,6 @@ void EditorWindow::adjustRect(const QPoint &pos)
             newRect.setBottom(newRect.top() + MIN_SIZE);
     }
 
-    // 更新捕获区域
     if (newRect != m_captureRect) {
         m_captureRect = newRect.normalized();
         m_dragStartPos = pos;
