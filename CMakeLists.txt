@@ -22,6 +22,8 @@ set(PROJECT_SOURCES
     src/core/screenshot/screenshot_window.cpp
     src/core/editor/editor_window.h
     src/core/editor/editor_window.cpp
+    src/core/editor/toolbar.h
+    src/core/editor/toolbar.cpp
     src/core/pinboard/pin_window.h
     src/core/pinboard/pin_window.cpp
     src/utils/system_tray.h
@@ -36,6 +38,8 @@ set(PROJECT_SOURCES
     src/utils/mousehook.cpp
     src/utils/magnifier.h
     src/utils/magnifier.cpp
+    src/utils/FontManager.cpp
+    src/utils/FontManager.h
     resources/resources.qrc
 )
 
