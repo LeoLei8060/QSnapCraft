@@ -10,7 +10,6 @@ ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     : QWidget(parent)
     , m_isDragging(false)
     , m_smartInspect(false)
-    , m_state(State::Finished)
 {
     // 设置窗口属性
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
@@ -45,7 +44,6 @@ void ScreenshotWindow::quit()
 {
     // 退出截图工具
     m_smartInspect = false;
-    m_state = State::Finished;
     m_mouseHook.uninstall();
     hide();
 }
@@ -199,13 +197,7 @@ void ScreenshotWindow::onLButtonUp(const POINT &pt)
 
 void ScreenshotWindow::onRButtonDown(const POINT &pt)
 {
-    // 如果在编辑状态，返回截屏状态
-    if (m_state == State::Editing) {
-        activateScreenCapture();
-    } else {
-        // 否则退出截图
-        quit();
-    }
+    quit();
 }
 
 void ScreenshotWindow::onRButtonUp(const POINT &pt)
@@ -221,8 +213,6 @@ void ScreenshotWindow::activateScreenCapture()
     m_highlightRect = QRect();
     // 开启智能检测
     m_smartInspect = true;
-    // 设置为截屏状态
-    m_state = State::Capturing;
     // 安装钩子
     m_mouseHook.install();
 }
@@ -231,8 +221,6 @@ void ScreenshotWindow::activateScreenEdit()
 {
     qDebug() << __FUNCTION__ << m_shotRect;
     m_smartInspect = false;
-
-    m_state = State::Editing;
 
     m_mouseHook.uninstall();
 

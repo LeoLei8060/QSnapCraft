@@ -21,7 +21,7 @@ EditorWindow::EditorWindow(QWidget *parent)
 
     // 连接信号
     connect(&m_toolbar, &Toolbar::toolSelected, this, &EditorWindow::onToolSelected);
-    m_toolbar.show();
+    m_toolbar.hide();
 
     const auto screens = QGuiApplication::screens();
     for (const auto *screen : screens) {
@@ -55,6 +55,16 @@ void EditorWindow::setData(const QImage &image, const QRect &captureRect)
     m_captureRect = captureRect;
     updateToolbarPosition();
     update();
+}
+
+void EditorWindow::start(const QImage &image, const QRect &captureRect)
+{
+    m_currentImage = image;
+    m_captureRect = captureRect;
+    m_toolbar.show();
+    updateToolbarPosition();
+    //    update();
+    show();
 }
 
 void EditorWindow::updateToolbarPosition()

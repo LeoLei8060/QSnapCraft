@@ -1,8 +1,10 @@
 #include "SingleApplication.h"
 #include "core/editor/editorwindow.h"
 #include "core/screenshot/screenshotwindow.h"
+#include "core/windowmanager.h"
 #include "shortcutmanager.h"
 #include "systemtray.h"
+#include "utils/fontmanager.h"
 #include <QDataStream>
 #include <QDebug>
 #include <QLocalSocket>
@@ -118,6 +120,9 @@ void SingleApplication::receiveMessage()
 void SingleApplication::initialize()
 {
     if (!isRunning()) {
+        initializeFonts();
+        m_windowManager = std::make_unique<WindowManager>();
+
         systemTray_ = std::make_unique<SystemTray>();
         shortcutManager_ = std::make_unique<ShortcutManager>();
 
@@ -137,35 +142,38 @@ void SingleApplication::initialize()
 
 void SingleApplication::quit()
 {
-    if (m_screenshotWindow) {
-        m_screenshotWindow->quit();
-    }
-    if (m_editWindow) {
-        m_editWindow->hide();
-    }
+    //    if (m_screenshotWindow) {
+    //        m_screenshotWindow->quit();
+    //    }
+    //    if (m_editWindow) {
+    //        m_editWindow->hide();
+    //    }
     QApplication::quit();
+}
+
+void SingleApplication::initializeFonts()
+{
+    // 加载字体文件
+    if (!FontManager::instance()->addThirdpartyFont(":/iconfont/iconfont.ttf",
+                                                    FontManager::IconFont)) {
+        qWarning() << "Failed to load icon font";
+    }
 }
 
 void SingleApplication::startScreenshot()
 {
-    if (!m_screenshotWindow) {
-        m_screenshotWindow = std::make_unique<ScreenshotWindow>();
-        connect(m_screenshotWindow.get(),
-                &ScreenshotWindow::sigStartEdit,
-                this,
-                &SingleApplication::startEdit);
-    }
-    m_screenshotWindow->start();
+    m_windowManager->startCapture();
 }
 
 void SingleApplication::startEdit()
 {
-    if (!m_editWindow) {
-        m_editWindow = std::make_unique<EditorWindow>();
-    }
-    qDebug() << __FUNCTION__ << m_screenshotWindow->getCaptureRect();
-    m_editWindow->setData(m_screenshotWindow->getCaptureImage(),
-                          m_screenshotWindow->getCaptureRect());
-    SetCursor(LoadCursor(NULL, IDC_SIZEALL));
-    m_editWindow->show();
+    m_windowManager->startEdit();
+    //    if (!m_editWindow) {
+    //        m_editWindow = std::make_unique<EditorWindow>();
+    //    }
+    //    qDebug() << __FUNCTION__ << m_screenshotWindow->getCaptureRect();
+    //    m_editWindow->setData(m_screenshotWindow->getCaptureImage(),
+    //                          m_screenshotWindow->getCaptureRect());
+    //    SetCursor(LoadCursor(NULL, IDC_SIZEALL));
+    //    m_editWindow->show();
 }

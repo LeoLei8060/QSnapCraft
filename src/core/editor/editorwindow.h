@@ -1,9 +1,9 @@
 #pragma once
 
-#include "utils/magnifier.h"
 #include "toolbar.h"
-#include <QWidget>
+#include "utils/magnifier.h"
 #include <QMap>
+#include <QWidget>
 
 class EditorWindow : public QWidget
 {
@@ -29,6 +29,7 @@ public:
 
     void setImage(const QImage &image);
     void setData(const QImage &image, const QRect &captureRect);
+    void start(const QImage &image, const QRect &captureRect);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -41,20 +42,20 @@ private slots:
 
 private:
     ResizeHandle hitTest(const QPoint &pos) const;
-    void updateCursor(ResizeHandle handle);
-    void adjustRect(const QPoint &pos);
-    void updateToolbarPosition();
-    QString getSaveFilePath();  // 获取保存文件路径
-    void saveImage();          // 保存图像
+    void         updateCursor(ResizeHandle handle);
+    void         adjustRect(const QPoint &pos);
+    void         updateToolbarPosition();
+    QString      getSaveFilePath(); // 获取保存文件路径
+    void         saveImage();       // 保存图像
 
-    QImage m_currentImage;
-    QRect  m_captureRect;
-    Toolbar m_toolbar;
-    QMap<QScreen*, QRect> m_screenGeometries;
-    QRect m_totalGeometry;
-    QPoint m_dragStartPos;
-    ResizeHandle m_currentHandle{ResizeHandle::None};
-    bool m_isDragging{false};
-    bool m_modified{false};    // 图像是否被修改
-    Magnifier m_magnifier;     // 放大镜
+    QImage                 m_currentImage;
+    QRect                  m_captureRect;
+    Toolbar                m_toolbar;
+    QMap<QScreen *, QRect> m_screenGeometries;
+    QRect                  m_totalGeometry;
+    QPoint                 m_dragStartPos;
+    ResizeHandle           m_currentHandle{ResizeHandle::None};
+    bool                   m_isDragging{false};
+    bool                   m_modified{false}; // 图像是否被修改
+    Magnifier              m_magnifier;       // 放大镜
 };

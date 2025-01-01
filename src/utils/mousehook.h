@@ -13,7 +13,6 @@ public:
 
     void install();
     void uninstall();
-    void setCursorStyle(LPCTSTR cursorName);
 
     static LRESULT CALLBACK mouseProc(int code, WPARAM wParam, LPARAM lParam);
 

@@ -10,6 +10,7 @@ class ScreenshotWindow;
 class SystemTray;
 class ShortcutManager;
 class EditorWindow;
+class WindowManager;
 
 class SingleApplication : public QApplication
 {
@@ -27,6 +28,9 @@ public slots:
     void startScreenshot();
     void startEdit();
     void quit();
+
+protected:
+    void initializeFonts();
 
 signals:
     void messageReceived(const QString &message);
@@ -48,6 +52,7 @@ private:
     std::unique_ptr<ShortcutManager>  shortcutManager_;
     std::unique_ptr<ScreenshotWindow> m_screenshotWindow;
     std::unique_ptr<EditorWindow>     m_editWindow;
+    std::unique_ptr<WindowManager>    m_windowManager;
 };
 
 #endif // SINGLEAPPLICATION_H
