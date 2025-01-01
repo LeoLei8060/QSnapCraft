@@ -18,6 +18,8 @@ add_subdirectory(src/hooks)
 
 set(PROJECT_SOURCES
     src/main.cpp
+    src/core/windowmanager.h
+    src/core/windowmanager.cpp
     src/core/screenshot/screenshotwindow.h
     src/core/screenshot/screenshotwindow.cpp
     src/core/editor/editorwindow.h
