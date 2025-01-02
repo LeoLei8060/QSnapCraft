@@ -34,6 +34,7 @@ void WindowManager::startCapture()
     if (m_state != State::Idle) {
         return;
     }
+    m_originalCursor = GetCursor();
     switchToCapture();
 }
 
@@ -56,6 +57,8 @@ void WindowManager::onCancelScreenshot()
         m_screenshotWindow->hide();
     if (m_editorWindow)
         m_editorWindow->hide();
+
+    SetCursor(m_originalCursor);
 }
 
 void WindowManager::onCompleteScreenshot()
@@ -110,4 +113,6 @@ void WindowManager::switchToIdle()
         m_screenshotWindow->hide();
     if (m_editorWindow)
         m_editorWindow->hideWindow();
+
+    SetCursor(m_originalCursor);
 }

@@ -39,4 +39,6 @@ private:
     std::unique_ptr<ScreenshotWindow> m_screenshotWindow;
     std::unique_ptr<EditorWindow>     m_editorWindow;
     State                             m_state{State::Idle};
+
+    HCURSOR m_originalCursor;
 };
