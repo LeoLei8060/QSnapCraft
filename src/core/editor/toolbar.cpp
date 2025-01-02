@@ -9,11 +9,10 @@
 Toolbar::Toolbar(QWidget *parent)
     : QWidget(parent)
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_TranslucentBackground);
 
     // 设置固定大小
-    //    setFixedSize(450, 40);
     setFixedHeight(34);
 
     // 初始化按钮

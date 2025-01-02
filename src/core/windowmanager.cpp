@@ -83,7 +83,7 @@ void WindowManager::onCancelEditor()
     if (m_editorWindow)
         m_editorWindow->hideWindow();
     if (m_screenshotWindow)
-        m_screenshotWindow->start();
+        m_screenshotWindow->showWindow();
 }
 
 void WindowManager::onCompleteEditor()

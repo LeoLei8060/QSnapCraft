@@ -15,7 +15,7 @@ EditorWindow::EditorWindow(QWidget *parent)
     : QWidget(parent)
     , m_toolbar(this)
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Widget);
     setAttribute(Qt::WA_TranslucentBackground);
 
     // 连接信号

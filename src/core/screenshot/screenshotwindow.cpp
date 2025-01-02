@@ -49,6 +49,12 @@ void ScreenshotWindow::quit()
     emit sigCancelScreenshot();
 }
 
+void ScreenshotWindow::showWindow()
+{
+    activateScreenCapture();
+    show();
+}
+
 void ScreenshotWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)

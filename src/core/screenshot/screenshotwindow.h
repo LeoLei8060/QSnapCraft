@@ -21,6 +21,8 @@ public:
     void start(); // 开始截图
     void quit();  // 退出截图
 
+    void showWindow();
+
     QImage getCaptureImage() const { return m_screenShot; }
     QRect  getCaptureRect() const { return m_shotRect; }
 
