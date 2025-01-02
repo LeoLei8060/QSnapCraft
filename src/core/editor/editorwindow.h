@@ -31,6 +31,12 @@ public:
     void setData(const QImage &image, const QRect &captureRect);
     void start(const QImage &image, const QRect &captureRect);
 
+    void hideWindow();
+
+signals:
+    void sigEditorFinished();
+    void sigCancelEditor();
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

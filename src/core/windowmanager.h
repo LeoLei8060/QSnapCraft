@@ -26,8 +26,10 @@ public:
     bool isCapturing() const { return m_state == State::Capturing; }
 
 private slots:
-    void onScreenshotFinished(); // 截图完成，切换到编辑状态
-    void onEditorFinished();     // 编辑完成，返回空闲状态
+    void onCancelScreenshot();   // 截图取消，返回空闲状态
+    void onCompleteScreenshot(); // 截图完成，切换到编辑状态
+    void onCancelEditor();       // 编辑取消，切换到截图状态
+    void onCompleteEditor();     // 编辑完成，返回空闲状态
 
 private:
     void switchToCapture(); // 切换到截图状态

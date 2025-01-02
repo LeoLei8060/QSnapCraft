@@ -46,17 +46,17 @@ void ScreenshotWindow::quit()
     m_smartInspect = false;
     m_mouseHook.uninstall();
     hide();
+    emit sigCancelScreenshot();
 }
 
 void ScreenshotWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)
     QPainter painter(this);
+    painter.drawImage(0, 0, m_screenShot);
 
     // 绘制背景截图
     if (m_highlightRect.isValid()) {
-        painter.drawImage(0, 0, m_screenShot);
-
         // 添加半透明遮罩
         QPainterPath windowPath;
         windowPath.addRect(rect());
@@ -202,7 +202,7 @@ void ScreenshotWindow::onRButtonDown(const POINT &pt)
 
 void ScreenshotWindow::onRButtonUp(const POINT &pt)
 {
-    quit();
+    //    quit();
 }
 
 void ScreenshotWindow::activateScreenCapture()
@@ -210,11 +210,18 @@ void ScreenshotWindow::activateScreenCapture()
     //    setWindowFlags(windowFlags() | Qt::WindowTransparentForInput);
     qDebug() << __FUNCTION__;
     m_shotRect = QRect();
-    m_highlightRect = QRect();
+    //    m_highlightRect = QRect();
+
     // 开启智能检测
     m_smartInspect = true;
     // 安装钩子
     m_mouseHook.install();
+
+    const auto &pt = QCursor::pos();
+    POINT       point;
+    point.x = pt.x();
+    point.y = pt.y();
+    onMouseMove(point);
 }
 
 void ScreenshotWindow::activateScreenEdit()
@@ -224,6 +231,6 @@ void ScreenshotWindow::activateScreenEdit()
 
     m_mouseHook.uninstall();
 
-    emit sigStartEdit();
+    emit sigCompleteScreenshot();
     hide();
 }

@@ -25,7 +25,8 @@ public:
     QRect  getCaptureRect() const { return m_shotRect; }
 
 signals:
-    void sigStartEdit();
+    void sigCompleteScreenshot();
+    void sigCancelScreenshot();
 
 protected:
     void paintEvent(QPaintEvent *event) override;

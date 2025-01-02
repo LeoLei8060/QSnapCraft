@@ -17,7 +17,6 @@ EditorWindow::EditorWindow(QWidget *parent)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
     setAttribute(Qt::WA_TranslucentBackground);
-    setAttribute(Qt::WA_DeleteOnClose);
 
     // 连接信号
     connect(&m_toolbar, &Toolbar::toolSelected, this, &EditorWindow::onToolSelected);
@@ -63,8 +62,13 @@ void EditorWindow::start(const QImage &image, const QRect &captureRect)
     m_captureRect = captureRect;
     m_toolbar.show();
     updateToolbarPosition();
-    //    update();
     show();
+}
+
+void EditorWindow::hideWindow()
+{
+    m_toolbar.hide();
+    hide();
 }
 
 void EditorWindow::updateToolbarPosition()
@@ -140,8 +144,8 @@ void EditorWindow::saveImage()
         return;
     }
 
-    // 保存成功后直接关闭窗口
-    close();
+    // 发送信号-截屏结束
+    emit sigEditorFinished();
 }
 
 void EditorWindow::paintEvent(QPaintEvent *event)
@@ -299,6 +303,9 @@ void EditorWindow::mousePressEvent(QMouseEvent *event)
         m_dragStartPos = QCursor::pos();
         m_currentHandle = hitTest(m_dragStartPos);
         m_isDragging = (m_currentHandle != ResizeHandle::None);
+    } else if (event->button() == Qt::RightButton) {
+        m_toolbar.hide();
+        emit sigCancelEditor();
     }
 }
 

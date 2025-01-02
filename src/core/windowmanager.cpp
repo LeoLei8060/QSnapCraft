@@ -10,10 +10,21 @@ WindowManager::WindowManager(QObject *parent)
 
     // 连接信号
     connect(m_screenshotWindow.get(),
-            &ScreenshotWindow::sigStartEdit,
+            &ScreenshotWindow::sigCompleteScreenshot,
             this,
-            &WindowManager::onScreenshotFinished);
-    connect(m_editorWindow.get(), &QWidget::destroyed, this, &WindowManager::onEditorFinished);
+            &WindowManager::onCompleteScreenshot);
+    connect(m_screenshotWindow.get(),
+            &ScreenshotWindow::sigCancelScreenshot,
+            this,
+            &WindowManager::onCancelScreenshot);
+    connect(m_editorWindow.get(),
+            &EditorWindow::sigEditorFinished,
+            this,
+            &WindowManager::onCompleteEditor);
+    connect(m_editorWindow.get(),
+            &EditorWindow::sigCancelEditor,
+            this,
+            &WindowManager::onCancelEditor);
 }
 
 WindowManager::~WindowManager() {}
@@ -33,14 +44,24 @@ void WindowManager::finishCapture()
 
 void WindowManager::startEdit()
 {
-    onScreenshotFinished();
+    onCancelScreenshot();
 }
 
-void WindowManager::onScreenshotFinished()
+void WindowManager::onCancelScreenshot()
 {
-    if (m_state != State::Capturing) {
+    if (m_state != State::Capturing)
         return;
-    }
+    m_state = State::Idle;
+    if (m_screenshotWindow)
+        m_screenshotWindow->hide();
+    if (m_editorWindow)
+        m_editorWindow->hide();
+}
+
+void WindowManager::onCompleteScreenshot()
+{
+    if (m_state != State::Capturing)
+        return;
 
     // 获取截图数据
     QImage image = m_screenshotWindow->getCaptureImage();
@@ -54,7 +75,18 @@ void WindowManager::onScreenshotFinished()
     m_editorWindow->show();
 }
 
-void WindowManager::onEditorFinished()
+void WindowManager::onCancelEditor()
+{
+    if (m_state != State::Editing)
+        return;
+    m_state = State::Capturing;
+    if (m_editorWindow)
+        m_editorWindow->hideWindow();
+    if (m_screenshotWindow)
+        m_screenshotWindow->start();
+}
+
+void WindowManager::onCompleteEditor()
 {
     switchToIdle();
 }
@@ -74,10 +106,8 @@ void WindowManager::switchToEdit()
 void WindowManager::switchToIdle()
 {
     m_state = State::Idle;
-    if (m_screenshotWindow) {
+    if (m_screenshotWindow)
         m_screenshotWindow->hide();
-    }
-    if (m_editorWindow) {
-        m_editorWindow->hide();
-    }
+    if (m_editorWindow)
+        m_editorWindow->hideWindow();
 }
