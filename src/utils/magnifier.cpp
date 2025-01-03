@@ -3,18 +3,21 @@
 
 Magnifier::Magnifier() {}
 
-void Magnifier::paint(QPainter &painter, const QImage &background, const QPoint &pos)
+void Magnifier::paint(QPainter      &painter,
+                      const QPixmap &background,
+                      const QImage  &img,
+                      const QPoint  &pos)
 {
     // 计算放大区域
     int    grabSize = MAGNIFIER_SIZE / ZOOM_FACTOR;
     QPoint grabTopLeft = pos - QPoint(grabSize / 2, grabSize / 2);
 
     // 创建放大后的图像
-    QImage magnified = background.copy(grabTopLeft.x(), grabTopLeft.y(), grabSize, grabSize)
-                           .scaled(MAGNIFIER_SIZE,
-                                   MAGNIFIER_SIZE,
-                                   Qt::KeepAspectRatio,
-                                   Qt::SmoothTransformation);
+    QPixmap magnified = background.copy(grabTopLeft.x(), grabTopLeft.y(), grabSize, grabSize)
+                            .scaled(MAGNIFIER_SIZE,
+                                    MAGNIFIER_SIZE,
+                                    Qt::KeepAspectRatio,
+                                    Qt::SmoothTransformation);
 
     // 计算放大镜位置
     QPoint magPos = pos + QPoint(20, 20);
@@ -38,7 +41,7 @@ void Magnifier::paint(QPainter &painter, const QImage &background, const QPoint 
     painter.drawRect(magPos.x(), magPos.y(), MAGNIFIER_SIZE, MAGNIFIER_SIZE);
 
     // 绘制放大后的图像
-    painter.drawImage(magPos, magnified);
+    painter.drawPixmap(magPos, magnified);
 
     // 绘制边框
     painter.setPen(QPen(QColor(0, 0, 0, 180), 1));
@@ -50,7 +53,7 @@ void Magnifier::paint(QPainter &painter, const QImage &background, const QPoint 
     int centerY = magPos.y() + MAGNIFIER_SIZE / 2;
 
     // 获取像素颜色
-    QColor pixelColor = background.pixelColor(pos);
+    QColor pixelColor = img.pixelColor(pos);
 
     // 绘制十字线（线宽与放大倍数相同）
     painter.setPen(QPen(QColor(178, 211, 250, 180), ZOOM_FACTOR));

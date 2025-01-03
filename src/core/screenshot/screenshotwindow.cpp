@@ -24,17 +24,16 @@ ScreenshotWindow::ScreenshotWindow(QWidget *parent)
 
 ScreenshotWindow::~ScreenshotWindow() {}
 
-void ScreenshotWindow::start()
+void ScreenshotWindow::start(const QPixmap &pixmap,
+                             const QImage  &img,
+                             const int     &left,
+                             const int     &top,
+                             const int     &width,
+                             const int     &height)
 {
-    int screenWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    int left = GetSystemMetrics(SM_XVIRTUALSCREEN);
-    int top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-
-    setGeometry(left, top, screenWidth, screenHeight);
-
-    // 捕获全屏图像
-    captureFullScreens();
+    m_screenshotPixmap = pixmap;
+    m_screenshotImg = img;
+    setGeometry(left, top, width, height);
 
     activateScreenCapture();
     show();
@@ -59,7 +58,7 @@ void ScreenshotWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)
     QPainter painter(this);
-    painter.drawImage(0, 0, m_screenShot);
+    painter.drawPixmap(0, 0, m_screenshotPixmap);
 
     // 绘制背景截图
     if (m_highlightRect.isValid()) {
@@ -79,85 +78,7 @@ void ScreenshotWindow::paintEvent(QPaintEvent *event)
     }
 
     // 绘制放大镜
-    m_magnifier.paint(painter, m_screenShot, QCursor::pos());
-}
-
-void ScreenshotWindow::captureFullScreens()
-{
-    int screenWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    int left = GetSystemMetrics(SM_XVIRTUALSCREEN);
-    int top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-
-    HDC hdcScreen = GetDC(NULL);
-    if (!hdcScreen) {
-        qDebug() << "Failed to get screen DC";
-        return;
-    }
-
-    HDC hdcMemory = CreateCompatibleDC(hdcScreen);
-    if (!hdcMemory) {
-        ReleaseDC(NULL, hdcScreen);
-        qDebug() << "Failed to create memory DC";
-        return;
-    }
-
-    HBITMAP hBitmap = CreateCompatibleBitmap(hdcScreen, screenWidth, screenHeight);
-    if (!hBitmap) {
-        DeleteDC(hdcMemory);
-        ReleaseDC(NULL, hdcScreen);
-        qDebug() << "Failed to create bitmap";
-        return;
-    }
-
-    HBITMAP hOldBitmap = (HBITMAP) SelectObject(hdcMemory, hBitmap);
-
-    if (!BitBlt(hdcMemory, 0, 0, screenWidth, screenHeight, hdcScreen, left, top, SRCCOPY)) {
-        SelectObject(hdcMemory, hOldBitmap);
-        DeleteObject(hBitmap);
-        DeleteDC(hdcMemory);
-        ReleaseDC(NULL, hdcScreen);
-        qDebug() << "BitBlt failed";
-        return;
-    }
-
-    BITMAP bmpScreen;
-    GetObject(hBitmap, sizeof(BITMAP), &bmpScreen);
-
-    BITMAPINFOHEADER bi;
-    ZeroMemory(&bi, sizeof(BITMAPINFOHEADER));
-    bi.biSize = sizeof(BITMAPINFOHEADER);
-    bi.biWidth = bmpScreen.bmWidth;
-    bi.biHeight = -bmpScreen.bmHeight;
-    bi.biPlanes = 1;
-    bi.biBitCount = 32;
-    bi.biCompression = BI_RGB;
-
-    int                     dataSize = bmpScreen.bmWidth * 4 * bmpScreen.bmHeight;
-    std::unique_ptr<BYTE[]> lpBits(new BYTE[dataSize]);
-
-    if (!GetDIBits(hdcMemory,
-                   hBitmap,
-                   0,
-                   bmpScreen.bmHeight,
-                   lpBits.get(),
-                   (BITMAPINFO *) &bi,
-                   DIB_RGB_COLORS)) {
-        SelectObject(hdcMemory, hOldBitmap);
-        DeleteObject(hBitmap);
-        DeleteDC(hdcMemory);
-        ReleaseDC(NULL, hdcScreen);
-        qDebug() << "GetDIBits failed";
-        return;
-    }
-
-    m_screenShot = QImage(bmpScreen.bmWidth, bmpScreen.bmHeight, QImage::Format_ARGB32);
-    memcpy(m_screenShot.bits(), lpBits.get(), dataSize);
-
-    SelectObject(hdcMemory, hOldBitmap);
-    DeleteObject(hBitmap);
-    DeleteDC(hdcMemory);
-    ReleaseDC(NULL, hdcScreen);
+    m_magnifier.paint(painter, m_screenshotPixmap, m_screenshotImg, QCursor::pos());
 }
 
 void ScreenshotWindow::onMouseMove(const POINT &pt)

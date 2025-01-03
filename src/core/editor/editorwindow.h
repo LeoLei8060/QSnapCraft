@@ -63,5 +63,5 @@ private:
     ResizeHandle           m_currentHandle{ResizeHandle::None};
     bool                   m_isDragging{false};
     bool                   m_modified{false}; // 图像是否被修改
-    Magnifier              m_magnifier;       // 放大镜
+    //    Magnifier              m_magnifier;       // 放大镜
 };

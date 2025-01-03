@@ -198,7 +198,8 @@ void EditorWindow::paintEvent(QPaintEvent *event)
         }
     }
 
-    m_magnifier.paint(painter, m_currentImage, QCursor::pos());
+    // TODO: 暂时先取消编辑窗口放大镜功能
+    //    m_magnifier.paint(painter, m_currentImage, QCursor::pos());
 }
 
 EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const

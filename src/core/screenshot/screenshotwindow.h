@@ -18,13 +18,18 @@ public:
     explicit ScreenshotWindow(QWidget *parent = nullptr);
     ~ScreenshotWindow() override;
 
-    void start(); // 开始截图
-    void quit();  // 退出截图
+    void start(const QPixmap &pixmap,
+               const QImage  &img,
+               const int     &left,
+               const int     &top,
+               const int     &width,
+               const int     &height); // 开始截图
+    void quit();                   // 退出截图
 
     void showWindow();
 
-    QImage getCaptureImage() const { return m_screenShot; }
-    QRect  getCaptureRect() const { return m_shotRect; }
+    QPixmap getCaptureImage() const { return m_screenshotPixmap; }
+    QRect   getCaptureRect() const { return m_shotRect; }
 
 signals:
     void sigCompleteScreenshot();
@@ -33,7 +38,6 @@ signals:
 protected:
     void paintEvent(QPaintEvent *event) override;
 
-    void   captureFullScreens();
     void   drawMagnifier(QPainter &painter, const QPoint &pos);
     void   drawInfoText(QPainter &painter, const QPoint &pos);
     QColor getColorAtPos(const QPoint &pos);
@@ -51,7 +55,8 @@ private:
     void setCustomCursor();
     void restoreCursor();
 
-    QImage  m_screenShot;
+    QPixmap m_screenshotPixmap;
+    QImage  m_screenshotImg;
     QRect   m_highlightRect;
     QRect   m_shotRect;
     QCursor m_originalCursor;

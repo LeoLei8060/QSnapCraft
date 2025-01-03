@@ -32,6 +32,7 @@ private slots:
     void onCompleteEditor();     // 编辑完成，返回空闲状态
 
 private:
+    void captureFullScreens();
     void switchToCapture(); // 切换到截图状态
     void switchToEdit();    // 切换到编辑状态
     void switchToIdle();    // 切换到空闲状态
@@ -39,6 +40,14 @@ private:
     std::unique_ptr<ScreenshotWindow> m_screenshotWindow;
     std::unique_ptr<EditorWindow>     m_editorWindow;
     State                             m_state{State::Idle};
+
+    int m_screenWidth{0};
+    int m_screenHeight{0};
+    int m_screenTop{0};
+    int m_screenLeft{0};
+
+    QPixmap m_screenshotPixmap;
+    QImage  m_screenshotImg;
 
     HCURSOR m_originalCursor;
 };
