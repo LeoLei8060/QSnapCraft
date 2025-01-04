@@ -1,4 +1,5 @@
 #include "WindowManager.h"
+#include "pinboard/pinwindow.h"
 #include <QDebug>
 
 WindowManager::WindowManager(QObject *parent)
@@ -32,6 +33,7 @@ WindowManager::WindowManager(QObject *parent)
             &EditorWindow::sigCancelEditor,
             this,
             &WindowManager::onCancelEditor);
+    connect(m_editorWindow.get(), &EditorWindow::sigPinImage, this, &WindowManager::onPinImage);
 }
 
 WindowManager::~WindowManager() {}
@@ -99,6 +101,13 @@ void WindowManager::onCancelEditor()
 void WindowManager::onCompleteEditor()
 {
     switchToIdle();
+}
+
+void WindowManager::onPinImage(const QPixmap &pixmap, const QRect &rect)
+{
+    PinWindow *pinWindow = new PinWindow();
+    pinWindow->pinImage(pixmap, rect);
+    m_pinWindows.push_back(pinWindow);
 }
 
 void WindowManager::captureFullScreens()

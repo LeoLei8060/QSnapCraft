@@ -3,7 +3,10 @@
 #include "editor/editorwindow.h"
 #include "screenshot/screenshotwindow.h"
 #include <memory>
+#include <vector>
 #include <QObject>
+
+class PinWindow;
 
 class WindowManager : public QObject
 {
@@ -28,6 +31,7 @@ private slots:
     void onCompleteScreenshot(); // 截图完成，切换到编辑状态
     void onCancelEditor();       // 编辑取消，切换到截图状态
     void onCompleteEditor();     // 编辑完成，返回空闲状态
+    void onPinImage(const QPixmap &pixmap, const QRect &rect); // 将截图Pin到桌面上显示
 
 private:
     void captureFullScreens();
@@ -46,6 +50,8 @@ private:
 
     QPixmap m_screenshotPixmap;
     QImage  m_screenshotImg;
+
+    std::vector<PinWindow *> m_pinWindows;
 
     HCURSOR m_originalCursor;
 };

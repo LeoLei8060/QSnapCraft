@@ -34,6 +34,7 @@ public:
 signals:
     void sigEditorFinished();
     void sigCancelEditor();
+    void sigPinImage(const QPixmap &pixmap, const QRect &rect);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -53,6 +54,7 @@ private:
 
     void saveImage(); // 保存图像
     void copyImage(); // 复制
+    void pinImage();  // pin
 
     QPixmap                m_screenshotPixmap;
     QRect                  m_captureRect;

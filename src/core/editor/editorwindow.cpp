@@ -93,7 +93,7 @@ void EditorWindow::onToolSelected(Toolbar::Tool tool)
         saveImage();
         break;
     case Toolbar::Tool::Pin:
-        // TODO: 实现贴到屏幕功能
+        pinImage();
         break;
     case Toolbar::Tool::Exit:
         close(); // 关闭窗口
@@ -147,7 +147,16 @@ void EditorWindow::copyImage()
     // 将图片复制到剪贴板
     clipboard->setPixmap(capturedPixmap);
 
-    //    emit sigEditorFinished();
+    emit sigEditorFinished();
+}
+
+void EditorWindow::pinImage()
+{
+    // 从截图中裁剪出选择区域
+    QPixmap capturedPixmap = m_screenshotPixmap.copy(m_captureRect);
+
+    emit sigPinImage(capturedPixmap, m_captureRect);
+    emit sigEditorFinished();
 }
 
 void EditorWindow::paintEvent(QPaintEvent *event)
