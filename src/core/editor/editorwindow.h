@@ -50,7 +50,9 @@ private:
     void         adjustRect(const QPoint &pos);
     void         updateToolbarPosition();
     QString      getSaveFilePath(); // 获取保存文件路径
-    void         saveImage();       // 保存图像
+
+    void saveImage(); // 保存图像
+    void copyImage(); // 复制
 
     QPixmap                m_screenshotPixmap;
     QRect                  m_captureRect;

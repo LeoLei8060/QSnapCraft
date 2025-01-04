@@ -1,6 +1,7 @@
 #include "editorwindow.h"
 #include <windows.h>
 #include <QApplication>
+#include <QClipboard>
 #include <QDateTime>
 #include <QDebug>
 #include <QFileDialog>
@@ -86,7 +87,7 @@ void EditorWindow::onToolSelected(Toolbar::Tool tool)
 {
     switch (tool) {
     case Toolbar::Tool::Copy:
-        // TODO: 实现复制功能
+        copyImage();
         break;
     case Toolbar::Tool::Save:
         saveImage();
@@ -119,7 +120,7 @@ void EditorWindow::saveImage()
 {
     QString filePath = getSaveFilePath();
     if (filePath.isEmpty()) {
-        return; // 用户取消了保存操作
+        return;
     }
 
     // 创建要保存的图像（仅包含捕获区域）
@@ -133,6 +134,20 @@ void EditorWindow::saveImage()
 
     // 发送信号-截屏结束
     emit sigEditorFinished();
+}
+
+void EditorWindow::copyImage()
+{
+    // 从截图中裁剪出选择区域
+    QPixmap capturedPixmap = m_screenshotPixmap.copy(m_captureRect);
+
+    // 获取系统剪贴板
+    QClipboard *clipboard = QApplication::clipboard();
+
+    // 将图片复制到剪贴板
+    clipboard->setPixmap(capturedPixmap);
+
+    //    emit sigEditorFinished();
 }
 
 void EditorWindow::paintEvent(QPaintEvent *event)
