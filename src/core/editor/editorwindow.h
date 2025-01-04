@@ -27,9 +27,7 @@ public:
     explicit EditorWindow(QWidget *parent = nullptr);
     ~EditorWindow() override = default;
 
-    void setImage(const QImage &image);
-    void setData(const QImage &image, const QRect &captureRect);
-    void start(const QImage &image, const QRect &captureRect);
+    void start(const QPixmap &image, const QRect &captureRect);
 
     void hideWindow();
 
@@ -54,7 +52,7 @@ private:
     QString      getSaveFilePath(); // 获取保存文件路径
     void         saveImage();       // 保存图像
 
-    QImage                 m_currentImage;
+    QPixmap                m_screenshotPixmap;
     QRect                  m_captureRect;
     Toolbar                m_toolbar;
     QMap<QScreen *, QRect> m_screenGeometries;

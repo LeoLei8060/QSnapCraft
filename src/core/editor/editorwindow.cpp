@@ -43,22 +43,9 @@ EditorWindow::EditorWindow(QWidget *parent)
     setMouseTracking(true);
 }
 
-void EditorWindow::setImage(const QImage &image)
+void EditorWindow::start(const QPixmap &image, const QRect &captureRect)
 {
-    m_currentImage = image;
-}
-
-void EditorWindow::setData(const QImage &image, const QRect &captureRect)
-{
-    m_currentImage = image;
-    m_captureRect = captureRect;
-    updateToolbarPosition();
-    update();
-}
-
-void EditorWindow::start(const QImage &image, const QRect &captureRect)
-{
-    m_currentImage = image;
+    m_screenshotPixmap = image;
     m_captureRect = captureRect;
     m_toolbar.show();
     updateToolbarPosition();
@@ -136,10 +123,10 @@ void EditorWindow::saveImage()
     }
 
     // 创建要保存的图像（仅包含捕获区域）
-    QImage saveImage = m_currentImage.copy(m_captureRect);
+    QPixmap savePixmap = m_screenshotPixmap.copy(m_captureRect);
 
     // 保存图像
-    if (!saveImage.save(filePath)) {
+    if (!savePixmap.save(filePath)) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to save the image to %1").arg(filePath));
         return;
     }
@@ -154,7 +141,7 @@ void EditorWindow::paintEvent(QPaintEvent *event)
     QPainter painter(this);
 
     if (m_captureRect.isValid()) {
-        painter.drawImage(0, 0, m_currentImage);
+        painter.drawPixmap(0, 0, m_screenshotPixmap);
 
         QPainterPath windowPath;
         windowPath.addRect(rect());

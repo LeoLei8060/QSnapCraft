@@ -84,8 +84,8 @@ void WindowManager::onCompleteScreenshot()
         return;
 
     // 获取截图数据
-    QImage image = m_screenshotWindow->getCaptureImage().toImage();
-    QRect  rect = m_screenshotWindow->getCaptureRect();
+    QPixmap image = m_screenshotWindow->getCaptureImage();
+    QRect   rect = m_screenshotWindow->getCaptureRect();
 
     // 切换到编辑状态
     switchToEdit();
