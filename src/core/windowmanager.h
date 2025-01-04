@@ -20,9 +20,7 @@ public:
     explicit WindowManager(QObject *parent = nullptr);
     ~WindowManager();
 
-    void startCapture();  // 开始截图
-    void finishCapture(); // 结束截图
-    void startEdit();     // 开始编辑
+    void startCapture(); // 开始截图
     bool isCapturing() const { return m_state == State::Capturing; }
 
 private slots:

@@ -26,7 +26,6 @@ public:
 
 public slots:
     void startScreenshot();
-    void startEdit();
     void quit();
 
 protected:

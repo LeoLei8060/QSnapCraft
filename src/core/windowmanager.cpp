@@ -55,16 +55,6 @@ void WindowManager::startCapture()
                               m_screenHeight);
 }
 
-void WindowManager::finishCapture()
-{
-    switchToIdle();
-}
-
-void WindowManager::startEdit()
-{
-    onCancelScreenshot();
-}
-
 void WindowManager::onCancelScreenshot()
 {
     if (m_state != State::Capturing)

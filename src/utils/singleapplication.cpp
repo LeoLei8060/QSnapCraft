@@ -164,16 +164,3 @@ void SingleApplication::startScreenshot()
 {
     m_windowManager->startCapture();
 }
-
-void SingleApplication::startEdit()
-{
-    m_windowManager->startEdit();
-    //    if (!m_editWindow) {
-    //        m_editWindow = std::make_unique<EditorWindow>();
-    //    }
-    //    qDebug() << __FUNCTION__ << m_screenshotWindow->getCaptureRect();
-    //    m_editWindow->setData(m_screenshotWindow->getCaptureImage(),
-    //                          m_screenshotWindow->getCaptureRect());
-    //    SetCursor(LoadCursor(NULL, IDC_SIZEALL));
-    //    m_editWindow->show();
-}
