@@ -26,6 +26,8 @@ set(PROJECT_SOURCES
     src/core/editor/editorwindow.cpp
     src/core/editor/toolbar.h
     src/core/editor/toolbar.cpp
+    src/core/editor/colorpick.h
+    src/core/editor/colorpick.cpp
     src/core/pinboard/pinwindow.h
     src/core/pinboard/pinwindow.cpp
     src/utils/systemtray.h
