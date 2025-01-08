@@ -207,6 +207,19 @@ QString EditorWindow::getSaveFilePath()
                                         tr("Images (*.png *.jpg *.bmp)"));
 }
 
+void EditorWindow::editorFinished()
+{
+    // 先清理当前窗口状态和数据
+    setDrawMode(DrawMode::Move);
+    m_shapes.clear();
+    m_screenshotPixmap = QPixmap();
+    m_captureRect = QRect();
+    m_totalGeometry = QRect();
+    m_dragStartPos = QPoint();
+
+    emit sigEditorFinished();
+}
+
 void EditorWindow::saveImage()
 {
     QString filePath = getSaveFilePath();
@@ -225,8 +238,8 @@ void EditorWindow::saveImage()
         return;
     }
 
-    // 发送信号-截屏结束
-    emit sigEditorFinished();
+    // 截屏结束
+    editorFinished();
 }
 
 void EditorWindow::copyImage()
@@ -242,7 +255,7 @@ void EditorWindow::copyImage()
     // 将图片复制到剪贴板
     clipboard->setPixmap(capturedPixmap);
 
-    emit sigEditorFinished();
+    editorFinished();
 }
 
 void EditorWindow::pinImage()
@@ -253,7 +266,7 @@ void EditorWindow::pinImage()
     QPixmap capturedPixmap = tempPixmap.copy(m_captureRect);
 
     emit sigPinImage(capturedPixmap, m_captureRect);
-    emit sigEditorFinished();
+    editorFinished();
 }
 
 void EditorWindow::shapesToImage(QPixmap &img)

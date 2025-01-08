@@ -88,6 +88,7 @@ private:
     void         adjustRect(const QPoint &pos);
     void         updateToolbarPosition();
     QString      getSaveFilePath(); // 获取保存文件路径
+    void         editorFinished();
 
     void saveImage(); // 保存图像
     void copyImage(); // 复制
