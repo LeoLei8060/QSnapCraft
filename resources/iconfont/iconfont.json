@@ -6,6 +6,76 @@
   "description": "",
   "glyphs": [
     {
+      "icon_id": "4932618",
+      "name": "标注:鼠标样式:吸附点",
+      "font_class": "biaozhushubiaoyangshixifudian",
+      "unicode": "e636",
+      "unicode_decimal": 58934
+    },
+    {
+      "icon_id": "7736912",
+      "name": "矩形绘制鼠标样式_20",
+      "font_class": "juxinghuizhishubiaoyangshi_",
+      "unicode": "e6b3",
+      "unicode_decimal": 59059
+    },
+    {
+      "icon_id": "17379862",
+      "name": "Cross",
+      "font_class": "Cross",
+      "unicode": "e912",
+      "unicode_decimal": 59666
+    },
+    {
+      "icon_id": "17379863",
+      "name": "Default",
+      "font_class": "Default",
+      "unicode": "e913",
+      "unicode_decimal": 59667
+    },
+    {
+      "icon_id": "17379867",
+      "name": "East-West",
+      "font_class": "East-West",
+      "unicode": "e914",
+      "unicode_decimal": 59668
+    },
+    {
+      "icon_id": "17379869",
+      "name": "North-East South-West",
+      "font_class": "North-EastSouth-West",
+      "unicode": "e915",
+      "unicode_decimal": 59669
+    },
+    {
+      "icon_id": "17379872",
+      "name": "North-West South-East",
+      "font_class": "North-WestSouth-East",
+      "unicode": "e916",
+      "unicode_decimal": 59670
+    },
+    {
+      "icon_id": "17379874",
+      "name": "Move",
+      "font_class": "Move",
+      "unicode": "e917",
+      "unicode_decimal": 59671
+    },
+    {
+      "icon_id": "17379889",
+      "name": "Text (1)",
+      "font_class": "Text1",
+      "unicode": "e918",
+      "unicode_decimal": 59672
+    },
+    {
+      "icon_id": "27608672",
+      "name": "move",
+      "font_class": "move",
+      "unicode": "e601",
+      "unicode_decimal": 58881
+    },
+    {
       "icon_id": "10048835",
       "name": "矩形",
       "font_class": "juxing",

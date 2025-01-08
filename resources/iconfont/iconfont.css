@@ -1,8 +1,8 @@
 @font-face {
   font-family: "SnapCraftIconfont"; /* Project id 4799585 */
-  src: url('iconfont.woff2?t=1735646828008') format('woff2'),
-       url('iconfont.woff?t=1735646828008') format('woff'),
-       url('iconfont.ttf?t=1735646828008') format('truetype');
+  src: url('iconfont.woff2?t=1736315044941') format('woff2'),
+       url('iconfont.woff?t=1736315044941') format('woff'),
+       url('iconfont.ttf?t=1736315044941') format('truetype');
 }
 
 .SnapCraftIconfont {
@@ -11,6 +11,46 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-biaozhushubiaoyangshixifudian:before {
+  content: "\e636";
+}
+
+.icon-juxinghuizhishubiaoyangshi_:before {
+  content: "\e6b3";
+}
+
+.icon-Cross:before {
+  content: "\e912";
+}
+
+.icon-Default:before {
+  content: "\e913";
+}
+
+.icon-East-West:before {
+  content: "\e914";
+}
+
+.icon-North-EastSouth-West:before {
+  content: "\e915";
+}
+
+.icon-North-WestSouth-East:before {
+  content: "\e916";
+}
+
+.icon-Move:before {
+  content: "\e917";
+}
+
+.icon-Text1:before {
+  content: "\e918";
+}
+
+.icon-move:before {
+  content: "\e601";
 }
 
 .icon-juxing:before {
