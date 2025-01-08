@@ -11,15 +11,15 @@ class Toolbar : public QWidget
     Q_OBJECT
 
 public:
-    enum class Tool {
-        Rectangle,
-        Ellipse,
-        Line,
-        Arrow,
-        Pencil,
-        Marker,
-        Mosaic,
-        Text,
+    enum Tool {
+        RectangleBtn,
+        EllipseBtn,
+        PolyLineBtn,
+        ArrowBtn,
+        PencilBtn,
+        MarkerBtn,
+        MosaicBtn,
+        TextBtn,
         Eraser,
         Undo,
         Redo,
@@ -44,5 +44,5 @@ private:
     QString      getIconChar(Tool tool) const;
 
     QVector<QToolButton *> m_buttons;
-    Tool                   m_currentTool{Tool::Rectangle};
+    Tool                   m_currentTool{Tool::RectangleBtn};
 };

@@ -2,8 +2,25 @@
 
 #include "toolbar.h"
 #include "utils/magnifier.h"
+#include <memory>
+#include <stack>
+#include <vector>
+#include <QColor>
+#include <QInputDialog>
+#include <QKeyEvent>
 #include <QMap>
 #include <QWidget>
+
+// 前向声明
+class Shape;
+class Polyline;
+class Ellipse;
+class Rectangle;
+class Arrow;
+class Freehand;
+class Highlighter;
+class Mosaic;
+class Text;
 
 class EditorWindow : public QWidget
 {
@@ -24,6 +41,18 @@ public:
         Move
     };
 
+    enum DrawMode {
+        DrawPolyline,
+        DrawEllipse,
+        DrawRectangle,
+        DrawArrow,
+        DrawFreehand,
+        DrawHighlighter,
+        DrawMosaic,
+        DrawTexts,
+        Move
+    };
+
     explicit EditorWindow(QWidget *parent = nullptr);
     ~EditorWindow() override = default;
 
@@ -31,16 +60,24 @@ public:
 
     void hideWindow();
 
+    void setDrawMode(int mode);
+    void setPenColor(const QColor &color); // 添加设置画笔颜色的方法
+    void undo();
+    void redo();
+
 signals:
     void sigEditorFinished();
     void sigCancelEditor();
     void sigPinImage(const QPixmap &pixmap, const QRect &rect);
 
 protected:
-    void paintEvent(QPaintEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    void     paintEvent(QPaintEvent *event) override;
+    void     mouseMoveEvent(QMouseEvent *event) override;
+    void     mousePressEvent(QMouseEvent *event) override;
+    void     mouseReleaseEvent(QMouseEvent *event) override;
+    void     keyPressEvent(QKeyEvent *event) override;
+    void     inputMethodEvent(QInputMethodEvent *event) override;
+    QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
 
 private slots:
     void onToolSelected(Toolbar::Tool tool);
@@ -56,6 +93,11 @@ private:
     void copyImage(); // 复制
     void pinImage();  // pin
 
+    void createShape(const QPoint &pos);
+    void handleTextInput(const QPoint &pos);
+    void finishCurrentShape();
+    void removeCurrentShape();
+
     QPixmap                m_screenshotPixmap;
     QRect                  m_captureRect;
     Toolbar                m_toolbar;
@@ -66,4 +108,12 @@ private:
     bool                   m_isDragging{false};
     bool                   m_modified{false}; // 图像是否被修改
     //    Magnifier              m_magnifier;       // 放大镜
+
+    DrawMode                            m_currentMode{DrawMode::Move};
+    std::unique_ptr<Shape>              m_currentShape;
+    std::vector<std::unique_ptr<Shape>> m_shapes;
+    std::vector<std::unique_ptr<Shape>> m_redoStack;
+    int                                 m_mosaicType = 0; // 0 for Rectangle, 1 for Circle
+    QString                             m_preeditString;  // 用于存储输入法的预编辑文本
+    QColor                              m_penColor;       // 添加画笔颜色成员变量
 };

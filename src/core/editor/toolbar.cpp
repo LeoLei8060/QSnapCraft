@@ -23,21 +23,21 @@ QString Toolbar::getIconChar(Tool tool) const
 {
     // 返回每个工具对应的字体图标码
     switch (tool) {
-    case Tool::Rectangle:
+    case Tool::RectangleBtn:
         return QString(QChar(0xe622)); // 矩形
-    case Tool::Ellipse:
+    case Tool::EllipseBtn:
         return QString(QChar(0xe610)); // 椭圆
-    case Tool::Line:
+    case Tool::PolyLineBtn:
         return QString(QChar(0xe621)); // 直线
-    case Tool::Arrow:
+    case Tool::ArrowBtn:
         return QString(QChar(0xe600)); // 箭头
-    case Tool::Pencil:
+    case Tool::PencilBtn:
         return QString(QChar(0xe632)); // 画笔
-    case Tool::Marker:
+    case Tool::MarkerBtn:
         return QString(QChar(0xe81b)); // 马克笔
-    case Tool::Mosaic:
+    case Tool::MosaicBtn:
         return QString(QChar(0xe613)); // 马赛克
-    case Tool::Text:
+    case Tool::TextBtn:
         return QString(QChar(0xe854)); // 文字
     case Tool::Eraser:
         return QString(QChar(0xea15)); // 橡皮擦
@@ -65,14 +65,14 @@ void Toolbar::initializeUI()
     layout->setContentsMargins(2, 1, 1, 2);
 
     // 创建工具按钮
-    const QVector<std::tuple<Tool, QString>> tools = {{Tool::Rectangle, tr("Rectangle")},
-                                                      {Tool::Ellipse, tr("Ellipse")},
-                                                      {Tool::Line, tr("Line")},
-                                                      {Tool::Arrow, tr("Arrow")},
-                                                      {Tool::Pencil, tr("Pencil")},
-                                                      {Tool::Marker, tr("Marker")},
-                                                      {Tool::Mosaic, tr("Mosaic")},
-                                                      {Tool::Text, tr("Text")},
+    const QVector<std::tuple<Tool, QString>> tools = {{Tool::RectangleBtn, tr("Rectangle")},
+                                                      {Tool::EllipseBtn, tr("Ellipse")},
+                                                      {Tool::PolyLineBtn, tr("Line")},
+                                                      {Tool::ArrowBtn, tr("Arrow")},
+                                                      {Tool::PencilBtn, tr("Pencil")},
+                                                      {Tool::MarkerBtn, tr("Marker")},
+                                                      {Tool::MosaicBtn, tr("Mosaic")},
+                                                      {Tool::TextBtn, tr("Text")},
                                                       {Tool::Eraser, tr("Eraser")},
                                                       {Tool::Undo, tr("Undo")},
                                                       {Tool::Redo, tr("Redo")},
