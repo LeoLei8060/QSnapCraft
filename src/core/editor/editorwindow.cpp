@@ -25,7 +25,7 @@
 EditorWindow::EditorWindow(QWidget *parent)
     : QWidget(parent)
     , m_toolbar(this)
-    , m_currentMode(DrawMode::DrawPolyline)
+    , m_currentMode(DrawMode::Move)
     , m_mosaicType(0)
     , m_penColor(Qt::black) // 初始化画笔颜色为黑色
 {
@@ -498,6 +498,12 @@ void EditorWindow::updateCursor(ResizeHandle handle)
 void EditorWindow::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
+        if (m_currentMode == DrawMode::Move) {
+            m_dragStartPos = QCursor::pos();
+            m_currentHandle = hitTest(m_dragStartPos);
+            m_isDragging = (m_currentHandle != ResizeHandle::None);
+            return;
+        }
         if (!m_currentShape) {
             if (m_currentMode == DrawMode::DrawTexts) {
                 setCursor(Qt::IBeamCursor);
@@ -557,6 +563,10 @@ void EditorWindow::mousePressEvent(QMouseEvent *event)
         }
         update();
     } else if (event->button() == Qt::RightButton) {
+        if (m_currentMode == DrawMode::Move) {
+            m_toolbar.hide();
+            emit sigCancelEditor();
+        }
         if (m_currentShape) {
             if (m_currentMode == DrawMode::DrawPolyline) {
                 auto tmpObj = static_cast<Polyline *>(m_currentShape.get());
@@ -587,6 +597,17 @@ void EditorWindow::mousePressEvent(QMouseEvent *event)
 
 void EditorWindow::mouseMoveEvent(QMouseEvent *event)
 {
+    if (m_currentMode == DrawMode::Move) {
+        QPoint pos = QCursor::pos();
+
+        if (m_isDragging) {
+            adjustRect(pos);
+        } else {
+            ResizeHandle handle = hitTest(pos);
+            updateCursor(handle);
+        }
+        return;
+    }
     if (m_currentShape) {
         if (event->buttons() & Qt::LeftButton || m_currentMode == DrawMode::DrawPolyline) {
             if (m_currentMode == DrawMode::DrawTexts) {
@@ -600,18 +621,18 @@ void EditorWindow::mouseMoveEvent(QMouseEvent *event)
             update();
         }
     }
-    //    QPoint pos = QCursor::pos();
-
-    //    if (m_isDragging) {
-    //        adjustRect(pos);
-    //    } else {
-    //        ResizeHandle handle = hitTest(pos);
-    //        updateCursor(handle);
-    //    }
 }
 
 void EditorWindow::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (m_currentMode == DrawMode::Move) {
+        if (event->button() == Qt::LeftButton) {
+            m_isDragging = false;
+            m_currentHandle = ResizeHandle::None;
+            updateToolbarPosition();
+        }
+        return;
+    }
     if (event->button() == Qt::LeftButton && m_currentShape) {
         if (m_currentMode != DrawMode::DrawPolyline && m_currentMode != DrawMode::DrawTexts) {
             m_currentShape->updateShape(event->pos());
@@ -627,11 +648,6 @@ void EditorWindow::mouseReleaseEvent(QMouseEvent *event)
             update();
         }
     }
-    //    if (event->button() == Qt::LeftButton) {
-    //        m_isDragging = false;
-    //        m_currentHandle = ResizeHandle::None;
-    //        updateToolbarPosition();
-    //    }
 }
 
 void EditorWindow::keyPressEvent(QKeyEvent *event)
