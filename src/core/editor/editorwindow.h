@@ -92,6 +92,7 @@ private:
     void saveImage(); // 保存图像
     void copyImage(); // 复制
     void pinImage();  // pin
+    void shapesToImage(QPixmap &img);
 
     void createShape(const QPoint &pos);
     void handleTextInput(const QPoint &pos);

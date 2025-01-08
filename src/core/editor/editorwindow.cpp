@@ -215,7 +215,9 @@ void EditorWindow::saveImage()
     }
 
     // 创建要保存的图像（仅包含捕获区域）
-    QPixmap savePixmap = m_screenshotPixmap.copy(m_captureRect);
+    auto tempPixmap = m_screenshotPixmap;
+    shapesToImage(tempPixmap);
+    QPixmap savePixmap = tempPixmap.copy(m_captureRect);
 
     // 保存图像
     if (!savePixmap.save(filePath)) {
@@ -230,7 +232,9 @@ void EditorWindow::saveImage()
 void EditorWindow::copyImage()
 {
     // 从截图中裁剪出选择区域
-    QPixmap capturedPixmap = m_screenshotPixmap.copy(m_captureRect);
+    auto tempPixmap = m_screenshotPixmap;
+    shapesToImage(tempPixmap);
+    QPixmap capturedPixmap = tempPixmap.copy(m_captureRect);
 
     // 获取系统剪贴板
     QClipboard *clipboard = QApplication::clipboard();
@@ -244,10 +248,22 @@ void EditorWindow::copyImage()
 void EditorWindow::pinImage()
 {
     // 从截图中裁剪出选择区域
-    QPixmap capturedPixmap = m_screenshotPixmap.copy(m_captureRect);
+    auto tempPixmap = m_screenshotPixmap;
+    shapesToImage(tempPixmap);
+    QPixmap capturedPixmap = tempPixmap.copy(m_captureRect);
 
     emit sigPinImage(capturedPixmap, m_captureRect);
     emit sigEditorFinished();
+}
+
+void EditorWindow::shapesToImage(QPixmap &img)
+{
+    if (m_shapes.size() == 0)
+        return;
+    QPainter painter(&img);
+    for (const auto &shape : m_shapes) {
+        shape->draw(painter);
+    }
 }
 
 void EditorWindow::createShape(const QPoint &pos)
