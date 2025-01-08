@@ -12,6 +12,7 @@ class Toolbar : public QWidget
 
 public:
     enum Tool {
+        MoveBtn,
         RectangleBtn,
         EllipseBtn,
         PolyLineBtn,

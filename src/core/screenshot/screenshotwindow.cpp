@@ -134,10 +134,7 @@ void ScreenshotWindow::onRButtonUp(const POINT &pt)
 
 void ScreenshotWindow::activateScreenCapture()
 {
-    //    setWindowFlags(windowFlags() | Qt::WindowTransparentForInput);
-    qDebug() << __FUNCTION__;
     m_shotRect = QRect();
-    //    m_highlightRect = QRect();
 
     // 开启智能检测
     m_smartInspect = true;
@@ -153,7 +150,6 @@ void ScreenshotWindow::activateScreenCapture()
 
 void ScreenshotWindow::activateScreenEdit()
 {
-    qDebug() << __FUNCTION__ << m_shotRect;
     m_smartInspect = false;
 
     m_mouseHook.uninstall();

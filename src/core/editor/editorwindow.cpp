@@ -153,6 +153,9 @@ void EditorWindow::updateToolbarPosition()
 void EditorWindow::onToolSelected(Toolbar::Tool tool)
 {
     switch (tool) {
+    case Toolbar::Tool::MoveBtn:
+        setDrawMode(DrawMode::Move);
+        break;
     case Toolbar::Tool::RectangleBtn:
         setDrawMode(DrawMode::DrawRectangle);
         break;

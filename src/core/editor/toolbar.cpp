@@ -23,6 +23,8 @@ QString Toolbar::getIconChar(Tool tool) const
 {
     // 返回每个工具对应的字体图标码
     switch (tool) {
+    case Tool::MoveBtn:
+        return QString(QChar(0xe601));
     case Tool::RectangleBtn:
         return QString(QChar(0xe622)); // 矩形
     case Tool::EllipseBtn:
@@ -65,7 +67,8 @@ void Toolbar::initializeUI()
     layout->setContentsMargins(2, 1, 1, 2);
 
     // 创建工具按钮
-    const QVector<std::tuple<Tool, QString>> tools = {{Tool::RectangleBtn, tr("Rectangle")},
+    const QVector<std::tuple<Tool, QString>> tools = {{Tool::MoveBtn, tr("Move")},
+                                                      {Tool::RectangleBtn, tr("Rectangle")},
                                                       {Tool::EllipseBtn, tr("Ellipse")},
                                                       {Tool::PolyLineBtn, tr("Line")},
                                                       {Tool::ArrowBtn, tr("Arrow")},
