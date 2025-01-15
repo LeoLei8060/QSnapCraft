@@ -12,8 +12,8 @@ ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     , m_smartInspect(false)
 {
     // 设置窗口属性
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
-                   | Qt::WindowTransparentForInput | Qt::CoverWindow);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
+    setAttribute(Qt::WA_TranslucentBackground);
 
     connect(&m_mouseHook, &MouseHook::mouseMove, this, &ScreenshotWindow::onMouseMove);
     connect(&m_mouseHook, &MouseHook::buttonLDown, this, &ScreenshotWindow::onLButtonDown);
@@ -88,8 +88,15 @@ void ScreenshotWindow::onMouseMove(const POINT &pt)
         QPoint currentPos(pt.x, pt.y);
         m_highlightRect = QRect(m_dragStartPos, currentPos).normalized();
     } else if (m_smartInspect) {
+        // 临时设置窗口为完全透明并允许鼠标穿透
+        HWND hwnd = (HWND) winId();
+        SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
+
         // 智能检测模式下进行UI组件检测
         m_highlightRect = m_inspector.quickInspect(pt);
+
+        // 恢复窗口样式
+        SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) & ~WS_EX_TRANSPARENT);
     }
     update();
 }
