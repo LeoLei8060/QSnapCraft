@@ -43,6 +43,26 @@ QRect UIInspector::quickInspect(const POINT &pt)
     return QRect();
 }
 
+QRect UIInspector::quickInspect(const QPoint &pt)
+{
+    if (!m_automation)
+        return QRect();
+
+    POINT point;
+    point.x = pt.x();
+    point.y = pt.y();
+    IUIAutomationElement *element = nullptr;
+    HRESULT               hr = m_automation->ElementFromPoint(point, &element);
+
+    if (SUCCEEDED(hr) && element) {
+        auto qrect = getElementRect(element);
+        element->Release();
+        return qrect;
+    }
+
+    return QRect();
+}
+
 QRect UIInspector::getElementRect(IUIAutomationElement *element)
 {
     RECT rect;

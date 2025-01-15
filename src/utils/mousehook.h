@@ -26,4 +26,5 @@ signals:
 private:
     HHOOK             m_mouseHook;
     static MouseHook *instance;
+    //    static HWND       m_targetWindow;
 };

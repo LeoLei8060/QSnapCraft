@@ -37,6 +37,10 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
 
     void   drawMagnifier(QPainter &painter, const QPoint &pos);
     void   drawInfoText(QPainter &painter, const QPoint &pos);
@@ -52,8 +56,8 @@ private slots:
 private:
     void activateScreenCapture();
     void activateScreenEdit();
-    void setCustomCursor();
-    void restoreCursor();
+    void setSystemCursor();
+    void restoreSystemCursor();
 
     QPixmap m_screenshotPixmap;
     QImage  m_screenshotImg;
@@ -69,6 +73,10 @@ private:
     MouseHook   m_mouseHook;
     UIInspector m_inspector;
     Magnifier   m_magnifier; // 放大镜组件
+
+    HCURSOR            m_crossCursor; // 截图窗口的鼠标样式
+    static const DWORD CURSOR_IDS[];
+    static const int   CURSOR_COUNT;
 
     static const int MAGNIFIER_SIZE;
     static const int MAGNIFIER_SCALE;

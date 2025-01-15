@@ -26,12 +26,12 @@ void MouseHook::install()
     }
 
     // 调用hooks DLL中的接口，因为全局的WH_CALLWNDPROC钩子必须封装在单独的DLL中
-    if (!InstallHooks()) {
-        DWORD error = GetLastError();
-        qDebug() << "Global hook installation failed with error:" << error;
-    } else {
-        qDebug() << "Global hook installed successfully";
-    }
+    //    if (!InstallHooks()) {
+    //        DWORD error = GetLastError();
+    //        qDebug() << "Global hook installation failed with error:" << error;
+    //    } else {
+    //        qDebug() << "Global hook installed successfully";
+    //    }
 }
 
 void MouseHook::uninstall()
@@ -40,7 +40,7 @@ void MouseHook::uninstall()
         UnhookWindowsHookEx(m_mouseHook);
         m_mouseHook = NULL;
     }
-    UninstallHooks();
+    //    UninstallHooks();
 }
 
 LRESULT CALLBACK MouseHook::mouseProc(int code, WPARAM wParam, LPARAM lParam)
