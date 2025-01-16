@@ -66,6 +66,7 @@ EditorWindow::EditorWindow(QWidget *parent)
 
 void EditorWindow::start(const QPixmap &image, const QRect &captureRect)
 {
+    m_dragStartPos = QPoint();
     m_screenshotPixmap = image;
     m_captureRect = captureRect;
     m_toolbar.show();
@@ -217,7 +218,6 @@ void EditorWindow::editorFinished()
     m_shapes.clear();
     m_screenshotPixmap = QPixmap();
     m_captureRect = QRect();
-    m_totalGeometry = QRect();
     m_dragStartPos = QPoint();
 
     emit sigEditorFinished();
