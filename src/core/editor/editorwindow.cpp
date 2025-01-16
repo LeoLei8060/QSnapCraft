@@ -1,4 +1,5 @@
 #include "editorwindow.h"
+#include "colorpick.h"
 #include "shapes/arrow.h"
 #include "shapes/ellipse.h"
 #include "shapes/freehand.h"
@@ -22,12 +23,15 @@
 #include <QScreen>
 #include <QStandardPaths>
 
+// 初始化静态成员
+QColor EditorWindow::s_lastUsedColor = Qt::black;
+
 EditorWindow::EditorWindow(QWidget *parent)
     : QWidget(parent)
     , m_toolbar(this)
     , m_currentMode(DrawMode::Move)
     , m_mosaicType(0)
-    , m_penColor(Qt::black) // 初始化画笔颜色为黑色
+    , m_penColor(s_lastUsedColor) // 使用上次使用的颜色
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Widget);
     //    setAttribute(Qt::WA_TranslucentBackground);
@@ -41,7 +45,7 @@ EditorWindow::EditorWindow(QWidget *parent)
 
     // 连接信号
     connect(&m_toolbar, &Toolbar::toolSelected, this, &EditorWindow::onToolSelected);
-    m_toolbar.hide();
+    m_toolbar.hide(); // 初始时隐藏工具栏
 
     const auto screens = QGuiApplication::screens();
     for (const auto *screen : screens) {
@@ -103,9 +107,37 @@ void EditorWindow::setDrawMode(int mode)
 void EditorWindow::setPenColor(const QColor &color)
 {
     m_penColor = color;
+    s_lastUsedColor = color; // 保存颜色
     if (m_currentShape) {
         m_currentShape->setPenColor(color);
         update();
+    }
+    updateColorButton();
+}
+
+void EditorWindow::updateColorButton()
+{
+    if (auto *colorBtn = m_toolbar.getColorButton()) {
+        QString style = QString(R"(
+            QToolButton {
+                background-color: %1;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                margin: 8px;
+            }
+            QToolButton:hover {
+                border: 1px solid #6a6a6a;
+            }
+            QToolButton:pressed {
+                border: 1px solid #6a6a6a;
+                background-color: rgba(%2, %3, %4, 0.8);
+            }
+        )")
+                            .arg(m_penColor.name())
+                            .arg(m_penColor.red())
+                            .arg(m_penColor.green())
+                            .arg(m_penColor.blue());
+        colorBtn->setStyleSheet(style);
     }
 }
 
@@ -149,6 +181,7 @@ void EditorWindow::updateToolbarPosition()
 
     m_toolbar.move(x, y);
     m_toolbar.raise();
+    m_toolbar.activateWindow(); // 激活工具栏窗口
 }
 
 void EditorWindow::onToolSelected(Toolbar::Tool tool)
@@ -181,20 +214,43 @@ void EditorWindow::onToolSelected(Toolbar::Tool tool)
     case Toolbar::Tool::TextBtn:
         setDrawMode(DrawMode::DrawTexts);
         break;
-    case Toolbar::Tool::Copy:
-        copyImage();
+    case Toolbar::Tool::Eraser:
+        //        setDrawMode(DrawMode::Er);
         break;
-    case Toolbar::Tool::Save:
-        saveImage();
+    case Toolbar::Tool::Undo:
+        undo();
+        break;
+    case Toolbar::Tool::Redo:
+        redo();
         break;
     case Toolbar::Tool::Pin:
         pinImage();
         break;
     case Toolbar::Tool::Exit:
-        close(); // 关闭窗口
+        close();
         break;
+    case Toolbar::Tool::Save:
+        saveImage();
+        break;
+    case Toolbar::Tool::Copy:
+        copyImage();
+        break;
+    case Toolbar::Tool::ColorBtn: {
+        // 在颜色按钮旁边显示颜色选择器
+        if (QToolButton *colorBtn = m_toolbar.getColorButton()) {
+            // 创建临时的颜色选择器
+            auto *colorPick = new ColorPick(nullptr);
+            colorPick->setAttribute(Qt::WA_DeleteOnClose); // 关闭时自动删除
+            colorPick->setColor(m_penColor);               // 设置当前颜色
+
+            // 连接颜色变化信号
+            connect(colorPick, &ColorPick::colorChanged, this, &EditorWindow::setPenColor);
+
+            colorPick->showAtButton(colorBtn);
+        }
+        break;
+    }
     default:
-        // 其他工具的处理...
         break;
     }
 }
@@ -683,12 +739,22 @@ void EditorWindow::keyPressEvent(QKeyEvent *event)
 void EditorWindow::inputMethodEvent(QInputMethodEvent *event)
 {
     if (m_currentShape && m_currentMode == DrawMode::DrawTexts) {
-        auto textShape = static_cast<Text *>(m_currentShape.get());
+        auto         textShape = static_cast<Text *>(m_currentShape.get());
+        QFontMetrics metrics(textShape->getFont());
+        int          cursorX = textShape->getTextRect().left() + textShape->getPadding();
+        if (!textShape->getText().isEmpty()) {
+            cursorX += metrics.horizontalAdvance(textShape->getText());
+        }
 
-        // 如果有提交的文本，直接添加到当前文本
-        if (!event->commitString().isEmpty()) {
-            textShape->appendText(event->commitString());
-            update();
+        switch (event->type()) {
+        case QEvent::InputMethod:
+            if (!event->commitString().isEmpty()) {
+                textShape->appendText(event->commitString());
+                update();
+            }
+            break;
+        default:
+            break;
         }
     }
     QWidget::inputMethodEvent(event);
