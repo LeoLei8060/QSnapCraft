@@ -29,6 +29,8 @@ set(SOURCES_CORE_EDITOR
     src/core/editor/shapes/arrow.h
     src/core/editor/shapes/ellipse.cpp
     src/core/editor/shapes/ellipse.h
+    src/core/editor/shapes/eraser.h
+    src/core/editor/shapes/eraser.cpp
     src/core/editor/shapes/mosaic.cpp
     src/core/editor/shapes/mosaic.h
     src/core/editor/shapes/rectangle.cpp
