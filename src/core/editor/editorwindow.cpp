@@ -2,6 +2,7 @@
 #include "colorpick.h"
 #include "shapes/arrow.h"
 #include "shapes/ellipse.h"
+#include "shapes/eraser.h"
 #include "shapes/freehand.h"
 #include "shapes/highlighter.h"
 #include "shapes/mosaic.h"
@@ -215,7 +216,7 @@ void EditorWindow::onToolSelected(Toolbar::Tool tool)
         setDrawMode(DrawMode::DrawTexts);
         break;
     case Toolbar::Tool::Eraser:
-        //        setDrawMode(DrawMode::Er);
+        setDrawMode(DrawMode::DrawEraser);
         break;
     case Toolbar::Tool::Undo:
         undo();
@@ -332,10 +333,14 @@ void EditorWindow::shapesToImage(QPixmap &img)
 {
     if (m_shapes.size() == 0)
         return;
-    QPainter painter(&img);
+    auto     tmpImg = img.toImage();
+    QPainter painter(&tmpImg);
     for (const auto &shape : m_shapes) {
         shape->draw(painter);
     }
+
+    QPainter imgPainter(&img);
+    imgPainter.drawImage(0, 0, tmpImg);
 }
 
 void EditorWindow::createShape(const QPoint &pos)
@@ -363,6 +368,9 @@ void EditorWindow::createShape(const QPoint &pos)
         m_currentShape = std::make_unique<Mosaic>(pos,
                                                   static_cast<Mosaic::MosaicType>(m_mosaicType),
                                                   m_penColor);
+        break;
+    case DrawMode::DrawEraser:
+        m_currentShape = std::make_unique<Eraser>(pos);
         break;
     case DrawMode::DrawTexts:
         m_currentShape = std::make_unique<Text>(pos, m_penColor);
@@ -398,10 +406,9 @@ void EditorWindow::paintEvent(QPaintEvent *event)
     Q_UNUSED(event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
+    painter.drawPixmap(0, 0, m_screenshotPixmap);
 
     if (m_captureRect.isValid()) {
-        painter.drawPixmap(0, 0, m_screenshotPixmap);
-
         QPainterPath windowPath;
         windowPath.addRect(rect());
 
@@ -444,18 +451,23 @@ void EditorWindow::paintEvent(QPaintEvent *event)
         }
     }
 
+    auto     paintImg = QImage(size(), QImage::Format_ARGB32);
+    QPainter imgPainter(&paintImg);
+
     // Draw all completed shapes
     for (const auto &shape : m_shapes) {
-        shape->draw(painter);
+        shape->draw(imgPainter);
     }
 
     // Draw current shape if exists
     if (m_currentShape) {
-        m_currentShape->draw(painter);
+        m_currentShape->draw(imgPainter);
     }
 
     // TODO: 暂时先取消编辑窗口放大镜功能
     //    m_magnifier.paint(painter, m_currentImage, QCursor::pos());
+
+    painter.drawImage(0, 0, paintImg);
 }
 
 EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const

@@ -49,6 +49,7 @@ public:
         DrawFreehand,
         DrawHighlighter,
         DrawMosaic,
+        DrawEraser,
         DrawTexts,
         Move
     };
@@ -101,15 +102,15 @@ private:
     void finishCurrentShape();
     void removeCurrentShape();
 
-    QPixmap                    m_screenshotPixmap;
-    QRect                      m_captureRect;
-    QRect                      m_totalGeometry;
-    QMap<QScreen *, QRect>     m_screenGeometries;
-    Toolbar                    m_toolbar;
-    QPoint                     m_dragStartPos;
-    ResizeHandle               m_currentHandle{ResizeHandle::None};
-    bool                       m_isDragging{false};
-    bool                       m_modified{false}; // 图像是否被修改
+    QPixmap                m_screenshotPixmap;
+    QRect                  m_captureRect;
+    QRect                  m_totalGeometry;
+    QMap<QScreen *, QRect> m_screenGeometries;
+    Toolbar                m_toolbar;
+    QPoint                 m_dragStartPos;
+    ResizeHandle           m_currentHandle{ResizeHandle::None};
+    bool                   m_isDragging{false};
+    bool                   m_modified{false}; // 图像是否被修改
     //    Magnifier              m_magnifier;       // 放大镜
 
     DrawMode                            m_currentMode{DrawMode::Move};
@@ -119,5 +120,7 @@ private:
     int                                 m_mosaicType = 0; // 0 for Rectangle, 1 for Circle
     QString                             m_preeditString;  // 用于存储输入法的预编辑文本
     QColor                              m_penColor;       // 添加画笔颜色成员变量
-    static QColor                       s_lastUsedColor;  // 静态成员，保存上次使用的颜色
+    QImage                              m_paintImg;
+
+    static QColor s_lastUsedColor; // 静态成员，保存上次使用的颜色
 };
