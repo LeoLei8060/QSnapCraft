@@ -9,7 +9,7 @@
 Toolbar::Toolbar(QWidget *parent)
     : QWidget(parent)
 {
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     setAttribute(Qt::WA_TranslucentBackground);
 
     // 设置固定大小
@@ -55,6 +55,8 @@ QString Toolbar::getIconChar(Tool tool) const
         return QString(QChar(0xe782)); // 保存
     case Tool::Copy:
         return QString(QChar(0xe60b)); // 复制
+    case Tool::ColorBtn:
+        return QString(QChar(0xe6cf)); // 颜色图标
     default:
         return QString();
     }
@@ -68,6 +70,8 @@ void Toolbar::initializeUI()
 
     // 创建工具按钮
     const QVector<std::tuple<Tool, QString>> tools = {{Tool::MoveBtn, tr("Move")},
+                                                      {Tool::ColorBtn,
+                                                       tr("Color")}, // 移到第二个位置
                                                       {Tool::RectangleBtn, tr("Rectangle")},
                                                       {Tool::EllipseBtn, tr("Ellipse")},
                                                       {Tool::PolyLineBtn, tr("Line")},
@@ -85,7 +89,9 @@ void Toolbar::initializeUI()
                                                       {Tool::Copy, tr("Copy")}};
 
     // 添加分隔符的位置
-    const QVector<int> separatorPositions = {9, 11};
+    const QVector<int> separatorPositions = {1,
+                                             10,
+                                             12}; // 在颜色按钮后、橡皮擦后和撤销重做后添加分隔符
 
     for (int i = 0; i < tools.size(); ++i) {
         const auto &[tool, tooltip] = tools[i];
@@ -99,6 +105,47 @@ void Toolbar::initializeUI()
             separator->setFrameShape(QFrame::VLine);
             separator->setFrameShadow(QFrame::Sunken);
             layout->addWidget(separator);
+        }
+
+        // 如果是颜色按钮，保存引用
+        if (tool == Tool::ColorBtn) {
+            m_colorButton = button;
+        }
+    }
+}
+
+bool Toolbar::isCheckableTool(Tool tool) const
+{
+    // 返回工具是否需要显示选中状态
+    switch (tool) {
+    case Tool::MoveBtn:
+    case Tool::RectangleBtn:
+    case Tool::EllipseBtn:
+    case Tool::PolyLineBtn:
+    case Tool::ArrowBtn:
+    case Tool::PencilBtn:
+    case Tool::MarkerBtn:
+    case Tool::MosaicBtn:
+    case Tool::TextBtn:
+    case Tool::Eraser:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Toolbar::setCurrentTool(Tool tool)
+{
+    if (m_currentTool != tool) {
+        m_currentTool = tool;
+        // 更新所有按钮的选中状态
+        for (QToolButton *btn : m_buttons) {
+            if (btn && btn->property("tool").isValid()) {
+                Tool btnTool = static_cast<Tool>(btn->property("tool").toInt());
+                if (isCheckableTool(btnTool)) {
+                    btn->setChecked(btnTool == tool);
+                }
+            }
         }
     }
 }
@@ -118,27 +165,71 @@ QToolButton *Toolbar::createToolButton(Tool tool, const QString &iconText, const
     button->setFixedSize(32, 32);
     button->setAutoRaise(true);
 
-    // 设置样式表
-    button->setStyleSheet(QString(R"(
-        QToolButton {
-            color: #666666;
-            background: transparent;
-            border: none;
-            border-radius: 4px;
+    // 存储工具类型
+    button->setProperty("tool", static_cast<int>(tool));
+
+    // 设置是否可选中
+    if (isCheckableTool(tool)) {
+        button->setCheckable(true);
+        button->setChecked(tool == m_currentTool);
+    }
+
+    // 如果是颜色按钮，设置特殊样式
+    if (tool == Tool::ColorBtn) {
+        button->setObjectName("colorBtn");
+        button->setText(""); // 不显示图标
+        button->setStyleSheet(QString(R"(
+            QToolButton {
+                background-color: black;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                margin: 8px;
+            }
+            QToolButton:hover {
+                border: 1px solid #6a6a6a;
+            }
+            QToolButton:pressed {
+                border: 1px solid #6a6a6a;
+                background-color: rgba(0, 0, 0, 0.8);
+            }
+        )"));
+    } else {
+        // 其他按钮的通用样式
+        QString styleSheet = R"(
+            QToolButton {
+                color: #666666;
+                background: transparent;
+                border: none;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QToolButton:hover {
+                color: #333333;
+                background: rgba(0, 0, 0, 0.1);
+            }
+            QToolButton:pressed {
+                color: #000000;
+                background: rgba(0, 0, 0, 0.15);
+            })";
+
+        // 为可选中的按钮添加选中状态的样式
+        if (isCheckableTool(tool)) {
+            styleSheet += R"(
+            QToolButton:checked {
+                color: #000000;
+                background: rgba(0, 0, 0, 0.15);
+                border: 1px solid #666666;
+            })";
         }
-        QToolButton:hover {
-            color: #333333;
-            background: rgba(0, 0, 0, 0.1);
-        }
-        QToolButton:pressed {
-            color: #000000;
-            background: rgba(0, 0, 0, 0.15);
-        }
-    )"));
+
+        button->setStyleSheet(styleSheet);
+    }
 
     // 连接按钮点击信号
     connect(button, &QToolButton::clicked, this, [this, tool]() {
-        m_currentTool = tool;
+        if (isCheckableTool(tool)) {
+            setCurrentTool(tool);
+        }
         emit toolSelected(tool);
     });
 

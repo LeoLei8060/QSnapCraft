@@ -3,8 +3,7 @@
 #include "utils/FontManager.h"
 #include <QVector>
 #include <QWidget>
-
-class QToolButton;
+#include <QToolButton>
 
 class Toolbar : public QWidget
 {
@@ -27,14 +26,19 @@ public:
         Pin,
         Exit,
         Save,
-        Copy
+        Copy,
+        ColorBtn
     };
 
     explicit Toolbar(QWidget *parent = nullptr);
     ~Toolbar() override = default;
 
+    QToolButton *getColorButton() const { return m_colorButton; }
+    void setCurrentTool(Tool tool);  // 新增：设置当前工具
+
 signals:
     void toolSelected(Tool tool);
+    void colorButtonClicked(const QPoint &pos);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -43,7 +47,10 @@ private:
     void         initializeUI();
     QToolButton *createToolButton(Tool tool, const QString &iconText, const QString &tooltip);
     QString      getIconChar(Tool tool) const;
+    bool         isCheckableTool(Tool tool) const;  // 新增：判断工具是否需要显示选中状态
 
     QVector<QToolButton *> m_buttons;
-    Tool                   m_currentTool{Tool::RectangleBtn};
+    Tool                   m_currentTool{Tool::MoveBtn};  // 新增：当前选中的工具
+    QColor                m_currentColor{Qt::black};
+    QToolButton          *m_colorButton{nullptr};
 };
