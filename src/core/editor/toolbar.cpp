@@ -85,7 +85,7 @@ void Toolbar::initializeUI()
                                                       {Tool::Copy, tr("Copy")}};
 
     // 添加分隔符的位置
-    const QVector<int> separatorPositions = {8, 10, 11, 14};
+    const QVector<int> separatorPositions = {9, 11};
 
     for (int i = 0; i < tools.size(); ++i) {
         const auto &[tool, tooltip] = tools[i];
