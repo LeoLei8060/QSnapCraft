@@ -176,8 +176,13 @@ void EditorWindow::updateToolbarPosition()
         x = m_totalGeometry.left();
     }
 
-    if (y + toolbarHeight > m_totalGeometry.bottom()) {
-        y = m_captureRect.top() - toolbarHeight - spacing;
+    for (QScreen *screen : QGuiApplication::screens()) {
+        if (screen->geometry().contains(x, 1)) {
+            if (y + toolbarHeight > screen->geometry().bottom()) {
+                y = m_captureRect.top() - toolbarHeight - spacing;
+            }
+            break;
+        }
     }
 
     m_toolbar.move(x, y);
