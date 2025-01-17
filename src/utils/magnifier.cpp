@@ -28,13 +28,28 @@ void Magnifier::paint(QPainter      &painter,
     }
 
     // 如果放大镜超出下边界，放到上边
-    if (magPos.y() + MAGNIFIER_SIZE + 40 > background.height()) {
-        magPos.setY(pos.y() - MAGNIFIER_SIZE - 60);
+    if (magPos.y() + MAGNIFIER_SIZE + INFO_HEIGHT + HINT_HEIGHT > background.height()) {
+        magPos.setY(pos.y() - MAGNIFIER_SIZE - INFO_HEIGHT - HINT_HEIGHT - 20);
     }
 
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing);
 
+    // 绘制放大区域
+    drawMagnifierArea(painter, magPos, magnified);
+
+    // 获取像素颜色并绘制颜色信息
+    QColor pixelColor = img.pixelColor(pos);
+    drawColorInfo(painter, magPos, pixelColor);
+
+    // 绘制提示文本
+    drawHintText(painter, magPos);
+
+    painter.restore();
+}
+
+void Magnifier::drawMagnifierArea(QPainter &painter, const QPoint &magPos, const QPixmap &magnified)
+{
     // 绘制放大区域背景
     painter.setPen(Qt::NoPen);
     painter.setBrush(Qt::white);
@@ -52,9 +67,6 @@ void Magnifier::paint(QPainter      &painter,
     int centerX = magPos.x() + MAGNIFIER_SIZE / 2;
     int centerY = magPos.y() + MAGNIFIER_SIZE / 2;
 
-    // 获取像素颜色
-    QColor pixelColor = img.pixelColor(pos);
-
     // 绘制十字线（线宽与放大倍数相同）
     painter.setPen(QPen(QColor(178, 211, 250, 180), ZOOM_FACTOR));
     painter.drawLine(magPos.x() + 4, centerY, magPos.x() + MAGNIFIER_SIZE - 4, centerY);
@@ -63,18 +75,21 @@ void Magnifier::paint(QPainter      &painter,
     // 在十字线交叉点绘制当前像素
     QRect pixelRect(centerX - ZOOM_FACTOR / 2, centerY - ZOOM_FACTOR / 2, ZOOM_FACTOR, ZOOM_FACTOR);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(pixelColor);
+    painter.setBrush(QColor(0, 0, 0)); // Modified here
     painter.drawRect(pixelRect);
+}
 
-    // 绘制信息区域背景（半透明）
-    QRect infoRect(magPos.x(), magPos.y() + MAGNIFIER_SIZE, MAGNIFIER_SIZE, 40);
+void Magnifier::drawColorInfo(QPainter &painter, const QPoint &magPos, const QColor &pixelColor)
+{
+    // 绘制颜色信息区域背景（半透明）
+    QRect infoRect(magPos.x(), magPos.y() + MAGNIFIER_SIZE, MAGNIFIER_SIZE, INFO_HEIGHT);
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(0, 0, 0, 180));
     painter.drawRect(infoRect);
 
     // 设置字体
     QFont font = painter.font();
-    font.setPixelSize(12);
+    font.setPixelSize(FONT_SIZE);
     painter.setFont(font);
 
     // 获取字体度量以计算高度
@@ -85,7 +100,7 @@ void Magnifier::paint(QPainter      &painter,
 
     // 绘制坐标信息（居中对齐）
     painter.setPen(Qt::white);
-    QString posText = QString("(%1, %2)").arg(pos.x()).arg(pos.y());
+    QString posText = QString("(%1, %2)").arg(magPos.x()).arg(magPos.y());
     QRect   posRect = infoRect.adjusted(5, lineSpacing, -5, -textHeight - lineSpacing);
     painter.drawText(posRect, Qt::AlignCenter, posText);
 
@@ -97,16 +112,57 @@ void Magnifier::paint(QPainter      &painter,
     painter.drawRect(colorPreview);
 
     // 绘制颜色值（居中对齐）
-    QString colorText = QString(" %1, %2, %3")
-                            .arg(pixelColor.red())
-                            .arg(pixelColor.green())
-                            .arg(pixelColor.blue());
+    QString colorText;
+    if (m_showHexColor) {
+        // 显示十六进制格式
+        colorText = QString(" #%1%2%3")
+                        .arg(pixelColor.red(), 2, 16, QChar('0'))
+                        .arg(pixelColor.green(), 2, 16, QChar('0'))
+                        .arg(pixelColor.blue(), 2, 16, QChar('0'))
+                        .toUpper();
+    } else {
+        // 显示RGB格式
+        colorText = QString(" %1, %2, %3")
+                        .arg(pixelColor.red())
+                        .arg(pixelColor.green())
+                        .arg(pixelColor.blue());
+    }
+
     QRect colorTextRect(colorPreview.right() + 5,
                         colorBlockY,
                         infoRect.width() - colorPreview.width() - 15,
                         textHeight);
     painter.setPen(Qt::white);
     painter.drawText(colorTextRect, Qt::AlignLeft | Qt::AlignVCenter, colorText);
+}
 
-    painter.restore();
+void Magnifier::drawHintText(QPainter &painter, const QPoint &magPos)
+{
+    // 绘制提示信息区域背景（半透明）
+    QRect hintRect(magPos.x(), magPos.y() + MAGNIFIER_SIZE + INFO_HEIGHT, MAGNIFIER_SIZE, HINT_HEIGHT);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(0, 0, 0, 180));
+    painter.drawRect(hintRect);
+
+    // 设置字体
+    QFont font = painter.font();
+    font.setPixelSize(FONT_SIZE);
+    painter.setFont(font);
+
+    // 获取字体度量以计算高度
+    QFontMetrics fm(font);
+    int textHeight = fm.height();
+
+    // 计算两行文本的位置
+    int totalTextHeight = textHeight * 2 + LINE_SPACING;
+    int startY = hintRect.top() + (hintRect.height() - totalTextHeight) / 2;
+
+    // 绘制第一行提示文本
+    painter.setPen(Qt::white);
+    QRect copyRect(hintRect.left(), startY, hintRect.width(), textHeight);
+    painter.drawText(copyRect, Qt::AlignCenter, "按C复制颜色");
+
+    // 绘制第二行提示文本
+    QRect toggleRect(hintRect.left(), startY + textHeight + LINE_SPACING, hintRect.width(), textHeight);
+    painter.drawText(toggleRect, Qt::AlignCenter, "按Shift切换RGB/HEX");
 }
