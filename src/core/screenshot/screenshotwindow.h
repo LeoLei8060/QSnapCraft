@@ -41,6 +41,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+    void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
 
     void   drawMagnifier(QPainter &painter, const QPoint &pos);
@@ -60,6 +61,7 @@ private:
     void activateScreenEdit();
     void setSystemCursor();
     void restoreSystemCursor();
+    void activateFullScreenshot();
 
     QPixmap m_screenshotPixmap;
     QImage  m_screenshotImg;

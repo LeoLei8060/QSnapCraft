@@ -1,13 +1,13 @@
 #include "screenshotwindow.h"
 #include <windows.h>
 #include <QApplication>
+#include <QClipboard>
 #include <QDebug>
+#include <QGuiApplication>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
-#include <QGuiApplication>
-#include <QClipboard>
 
 // 定义所有需要修改的系统光标ID
 const DWORD ScreenshotWindow::CURSOR_IDS[] = {
@@ -73,7 +73,6 @@ void ScreenshotWindow::start(const QPixmap &pixmap,
 void ScreenshotWindow::quit()
 {
     // 退出截图工具
-    m_smartInspect = false;
     m_mouseHook.uninstall();
     hide();
     emit sigCancelScreenshot();
@@ -121,7 +120,7 @@ void ScreenshotWindow::mouseMoveEvent(QMouseEvent *event)
     if (m_isDragging) {
         // 如果正在拖拽，更新选择区域
         m_highlightRect = QRect(m_dragStartPos, currentPos).normalized();
-    } else if (m_smartInspect) {
+    } else {
         // 临时设置窗口为完全透明并允许鼠标穿透
         HWND hwnd = (HWND) winId();
         SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
@@ -141,9 +140,6 @@ void ScreenshotWindow::mousePressEvent(QMouseEvent *event)
         // 记录拖拽起始位置
         m_dragStartPos = QCursor::pos();
         m_isDragging = true;
-
-        // 关闭智能检测
-        m_smartInspect = false;
 
         update();
     } else if (event->button() == Qt::RightButton) {
@@ -187,7 +183,7 @@ void ScreenshotWindow::onMouseMove(const POINT &pt)
         // 如果正在拖拽，更新选择区域
         QPoint currentPos(pt.x, pt.y);
         m_highlightRect = QRect(m_dragStartPos, currentPos).normalized();
-    } else if (m_smartInspect) {
+    } else if (!m_smartInspect) {
         // 临时设置窗口为完全透明并允许鼠标穿透
         HWND hwnd = (HWND) winId();
         SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
@@ -206,9 +202,6 @@ void ScreenshotWindow::onLButtonDown(const POINT &pt)
     // 记录拖拽起始位置
     m_dragStartPos = QPoint(pt.x, pt.y);
     m_isDragging = true;
-
-    // 关闭智能检测
-    m_smartInspect = false;
 
     update();
 }
@@ -302,8 +295,6 @@ void ScreenshotWindow::activateScreenCapture()
 {
     m_shotRect = QRect();
 
-    // 开启智能检测
-    m_smartInspect = true;
     // 安装钩子
     m_mouseHook.install();
 
@@ -318,8 +309,6 @@ void ScreenshotWindow::activateScreenCapture()
 
 void ScreenshotWindow::activateScreenEdit()
 {
-    m_smartInspect = false;
-
     m_mouseHook.uninstall();
 
     restoreSystemCursor();
@@ -339,6 +328,23 @@ void ScreenshotWindow::setSystemCursor()
 void ScreenshotWindow::restoreSystemCursor()
 {
     SystemParametersInfo(SPI_SETCURSORS, 0, NULL, 0);
+}
+
+void ScreenshotWindow::activateFullScreenshot()
+{
+    m_highlightRect = m_screenshotPixmap.rect();
+    update();
+}
+
+void ScreenshotWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->modifiers() & Qt::ControlModifier) {
+        if (event->key() == Qt::Key_A) {
+            m_smartInspect = true;
+            activateFullScreenshot();
+        }
+    }
+    QWidget::keyPressEvent(event);
 }
 
 void ScreenshotWindow::keyReleaseEvent(QKeyEvent *event)
