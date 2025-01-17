@@ -31,7 +31,7 @@ void SystemTray::createTrayIcon()
 
     trayIcon = std::make_unique<QSystemTrayIcon>();
     trayIcon->setContextMenu(trayMenu.get());
-    trayIcon->setIcon(QIcon(":/icons/app.svg"));
+    trayIcon->setIcon(QIcon(":/icons/QSnapCraft.ico"));
     trayIcon->setToolTip("QSnapCraft");
 
     connect(trayIcon.get(), &QSystemTrayIcon::activated, this, &SystemTray::onTrayIconActivated);

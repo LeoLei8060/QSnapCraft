@@ -22,6 +22,7 @@ set(PROJECT_SOURCES
     src/core/windowmanager.h
     src/core/windowmanager.cpp
     resources/resources.qrc
+    resources/QSnapCraft.rc
 )
 
 set(SOURCES_CORE_EDITOR
@@ -79,7 +80,7 @@ set(SOURCES_UTILS
     src/utils/fontmanager.h
 )
 
-add_executable(QSnapCraft
+add_executable(QSnapCraft WIN32
     ${PROJECT_SOURCES}
     ${SOURCES_CORE_EDITOR}
     ${SOURCES_CORE_SCREENSHOT}
