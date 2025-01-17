@@ -33,8 +33,11 @@ ScreenshotWindow::ScreenshotWindow(QWidget *parent)
     , m_smartInspect(false)
 {
     // 设置窗口属性
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Widget);
     setAttribute(Qt::WA_TranslucentBackground);
+
+    // 设置焦点策略，使窗口可以接收键盘事件
+    setFocusPolicy(Qt::StrongFocus);
 
     m_crossCursor = LoadCursor(NULL, IDC_CROSS);
 
@@ -334,4 +337,13 @@ void ScreenshotWindow::setSystemCursor()
 void ScreenshotWindow::restoreSystemCursor()
 {
     SystemParametersInfo(SPI_SETCURSORS, 0, NULL, 0);
+}
+
+void ScreenshotWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Shift) {
+        m_magnifier.toggleColorFormat();
+        update();
+    }
+    QWidget::keyReleaseEvent(event);
 }

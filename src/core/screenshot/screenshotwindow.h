@@ -41,6 +41,7 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 
     void   drawMagnifier(QPainter &painter, const QPoint &pos);
     void   drawInfoText(QPainter &painter, const QPoint &pos);
