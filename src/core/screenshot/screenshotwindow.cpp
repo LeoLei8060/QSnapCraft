@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
+#include <QGuiApplication>
+#include <QClipboard>
 
 // 定义所有需要修改的系统光标ID
 const DWORD ScreenshotWindow::CURSOR_IDS[] = {
@@ -344,6 +346,10 @@ void ScreenshotWindow::keyReleaseEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Shift) {
         m_magnifier.toggleColorFormat();
         update();
+    } else if (event->key() == Qt::Key_C) {
+        // 复制颜色值到剪贴板
+        QString colorText = m_magnifier.getCurrentColorText();
+        QGuiApplication::clipboard()->setText(colorText);
     }
     QWidget::keyReleaseEvent(event);
 }

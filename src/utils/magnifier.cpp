@@ -35,12 +35,14 @@ void Magnifier::paint(QPainter      &painter,
     painter.save();
     painter.setRenderHint(QPainter::Antialiasing);
 
+    // 获取像素颜色并保存
+    m_currentColor = img.pixelColor(pos);
+
     // 绘制放大区域
     drawMagnifierArea(painter, magPos, magnified);
 
-    // 获取像素颜色并绘制颜色信息
-    QColor pixelColor = img.pixelColor(pos);
-    drawColorInfo(painter, magPos, pixelColor);
+    // 绘制颜色信息
+    drawColorInfo(painter, magPos, m_currentColor);
 
     // 绘制提示文本
     drawHintText(painter, magPos);
@@ -75,7 +77,7 @@ void Magnifier::drawMagnifierArea(QPainter &painter, const QPoint &magPos, const
     // 在十字线交叉点绘制当前像素
     QRect pixelRect(centerX - ZOOM_FACTOR / 2, centerY - ZOOM_FACTOR / 2, ZOOM_FACTOR, ZOOM_FACTOR);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0, 0, 0)); // Modified here
+    painter.setBrush(QColor(0, 0, 0)); 
     painter.drawRect(pixelRect);
 }
 
@@ -112,21 +114,7 @@ void Magnifier::drawColorInfo(QPainter &painter, const QPoint &magPos, const QCo
     painter.drawRect(colorPreview);
 
     // 绘制颜色值（居中对齐）
-    QString colorText;
-    if (m_showHexColor) {
-        // 显示十六进制格式
-        colorText = QString(" #%1%2%3")
-                        .arg(pixelColor.red(), 2, 16, QChar('0'))
-                        .arg(pixelColor.green(), 2, 16, QChar('0'))
-                        .arg(pixelColor.blue(), 2, 16, QChar('0'))
-                        .toUpper();
-    } else {
-        // 显示RGB格式
-        colorText = QString(" %1, %2, %3")
-                        .arg(pixelColor.red())
-                        .arg(pixelColor.green())
-                        .arg(pixelColor.blue());
-    }
+    QString colorText = formatColorText(pixelColor);
 
     QRect colorTextRect(colorPreview.right() + 5,
                         colorBlockY,
@@ -165,4 +153,27 @@ void Magnifier::drawHintText(QPainter &painter, const QPoint &magPos)
     // 绘制第二行提示文本
     QRect toggleRect(hintRect.left(), startY + textHeight + LINE_SPACING, hintRect.width(), textHeight);
     painter.drawText(toggleRect, Qt::AlignCenter, "按Shift切换RGB/HEX");
+}
+
+QString Magnifier::formatColorText(const QColor &color) const
+{
+    if (m_showHexColor) {
+        // 显示十六进制格式
+        return QString("#%1%2%3")
+                .arg(color.red(), 2, 16, QChar('0'))
+                .arg(color.green(), 2, 16, QChar('0'))
+                .arg(color.blue(), 2, 16, QChar('0'))
+                .toUpper();
+    } else {
+        // 显示RGB格式
+        return QString("%1, %2, %3")
+                .arg(color.red())
+                .arg(color.green())
+                .arg(color.blue());
+    }
+}
+
+QString Magnifier::getCurrentColorText() const
+{
+    return formatColorText(m_currentColor);
 }
