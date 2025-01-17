@@ -101,6 +101,8 @@ void ScreenshotWindow::paintEvent(QPaintEvent *event)
 
         painter.setPen(QPen(Qt::red, 2));
         painter.drawRect(m_highlightRect);
+
+        drawPositionText(&painter);
     }
 
     // 绘制放大镜
@@ -230,6 +232,65 @@ void ScreenshotWindow::onRButtonDown(const POINT &pt)
 void ScreenshotWindow::onRButtonUp(const POINT &pt)
 {
     //    quit();
+}
+
+void ScreenshotWindow::drawPositionText(QPainter *painter)
+{
+    // 获取系统DPI信息
+    const qreal dpr = devicePixelRatioF();
+
+    // 设置基础尺寸
+    const int baseTextSize = qRound(12 * dpr); // 基础字体大小
+    const int padding = qRound(8 * dpr);       // 文本框内边距
+    const int margin = qRound(1 * dpr);        // 边框宽度
+
+    // 设置字体并计算文本尺寸
+    QFont font = painter->font();
+    font.setPixelSize(baseTextSize);
+    painter->setFont(font);
+
+    // 计算文本尺寸
+    QString text = QString("%1×%2").arg(m_highlightRect.width()).arg(m_highlightRect.height());
+    QFontMetrics fm(font);
+    QSize        textSize = fm.size(Qt::TextSingleLine, text);
+
+    // 计算文本框尺寸
+    const int textRectWidth = textSize.width() + (padding * 2);
+    const int textRectHeight = textSize.height() + (padding * 2);
+
+    QRect textRect;
+    // 水平居中显示
+
+    // 确定文本框位置
+    if (m_highlightRect.top() > textRectHeight + margin) {
+        // 在选区上方显示
+        textRect = QRect(m_highlightRect.left(),
+                         m_highlightRect.top() - textRectHeight - margin,
+                         textRectWidth,
+                         textRectHeight);
+    } else if (m_highlightRect.bottom() < height() - textRectHeight - margin) {
+        // 在选区下方显示
+        textRect = QRect(m_highlightRect.left(),
+                         m_highlightRect.bottom() + margin,
+                         textRectWidth,
+                         textRectHeight);
+    } else {
+        // 在选区内部显示
+        textRect = QRect(m_highlightRect.left(),
+                         m_highlightRect.top() + margin,
+                         textRectWidth,
+                         textRectHeight);
+    }
+
+    // 绘制半透明背景和边框
+    painter->setPen(QPen(QColor(255, 255, 255, 40), margin));
+    painter->setBrush(QColor(0, 0, 0, 160));
+    painter->drawRect(textRect);
+
+    // 绘制文本
+    painter->setBrush(Qt::NoBrush);
+    painter->setPen(QPen(Qt::white, 1));
+    painter->drawText(textRect, Qt::AlignCenter, text);
 }
 
 void ScreenshotWindow::activateScreenCapture()

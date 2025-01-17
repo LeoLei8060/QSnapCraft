@@ -54,6 +54,7 @@ private slots:
     void onRButtonUp(const POINT &pt);
 
 private:
+    void drawPositionText(QPainter *painter);
     void activateScreenCapture();
     void activateScreenEdit();
     void setSystemCursor();
