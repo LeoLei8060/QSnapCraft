@@ -309,7 +309,8 @@ void ScreenshotWindow::restoreSystemCursor()
 void ScreenshotWindow::activateFullScreenshot()
 {
     m_highlightRect = m_screenshotPixmap.rect();
-    update();
+    m_shotRect = m_highlightRect;
+    activateScreenEdit();
 }
 
 void ScreenshotWindow::keyPressEvent(QKeyEvent *event)
