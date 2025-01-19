@@ -1,6 +1,7 @@
 #include "shortcutmanager.h"
 #include <QApplication>
 #include <QDebug>
+#include <QMessageBox>
 
 ShortcutManager::ShortcutManager(QObject *parent)
     : QObject(parent)
@@ -16,11 +17,11 @@ ShortcutManager::~ShortcutManager()
 
 void ShortcutManager::registerHotKey()
 {
-    if (!RegisterHotKey(nullptr, SCREENSHOT_HOTKEY_ID, 0, VK_F2)) {
-        qDebug() << "Failed to register F2 hotkey";
+    if (!RegisterHotKey(nullptr, SCREENSHOT_HOTKEY_ID, 0, VK_F1)) {
+        QMessageBox::warning(nullptr, "警告", "F1 快捷键注册失败！");
     }
     if (!RegisterHotKey(nullptr, ESCAPE_HOTKEY_ID, 0, VK_ESCAPE)) {
-        qDebug() << "Failed to register ESC hotkey";
+        QMessageBox::warning(nullptr, "警告", "ESC 快捷键注册失败！");
     }
 }
 
