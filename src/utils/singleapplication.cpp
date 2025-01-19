@@ -133,23 +133,14 @@ void SingleApplication::initialize()
 
         connect(shortcutManager_.get(),
                 &ShortcutManager::escapePressed,
-                this,
-                &SingleApplication::quit);
+                m_windowManager.get(),
+                &WindowManager::onEscapePressed);
 
         systemTray_->show();
     }
 }
 
-void SingleApplication::quit()
-{
-    //    if (m_screenshotWindow) {
-    //        m_screenshotWindow->quit();
-    //    }
-    //    if (m_editWindow) {
-    //        m_editWindow->hide();
-    //    }
-    QApplication::quit();
-}
+void SingleApplication::quit() {}
 
 void SingleApplication::initializeFonts()
 {

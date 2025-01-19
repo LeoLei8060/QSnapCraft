@@ -26,6 +26,9 @@ public:
     void startCapture(); // 开始截图
     bool isCapturing() const { return m_state == State::Capturing; }
 
+public slots:
+    void onEscapePressed();
+
 private slots:
     void onCancelScreenshot();   // 截图取消，返回空闲状态
     void onCompleteScreenshot(); // 截图完成，切换到编辑状态

@@ -57,13 +57,20 @@ void WindowManager::startCapture()
                               m_screenHeight);
 }
 
+void WindowManager::onEscapePressed()
+{
+    switchToIdle();
+}
+
 void WindowManager::onCancelScreenshot()
 {
     if (m_state != State::Capturing)
         return;
     m_state = State::Idle;
-    if (m_screenshotWindow)
+    if (m_screenshotWindow) {
+        m_screenshotWindow->restoreSystemCursor();
         m_screenshotWindow->hide();
+    }
     if (m_editorWindow)
         m_editorWindow->hide();
 }
@@ -205,8 +212,10 @@ void WindowManager::switchToEdit()
 void WindowManager::switchToIdle()
 {
     m_state = State::Idle;
-    if (m_screenshotWindow)
+    if (m_screenshotWindow) {
+        m_screenshotWindow->restoreSystemCursor();
         m_screenshotWindow->hide();
+    }
     if (m_editorWindow)
         m_editorWindow->hideWindow();
 }
