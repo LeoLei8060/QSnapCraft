@@ -40,14 +40,9 @@ ScreenshotWindow::ScreenshotWindow(QWidget *parent)
 
     // 设置焦点策略，使窗口可以接收键盘事件
     setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true);
 
     m_crossCursor = LoadCursor(NULL, IDC_CROSS);
-
-    connect(&m_mouseHook, &MouseHook::mouseMove, this, &ScreenshotWindow::onMouseMove);
-    connect(&m_mouseHook, &MouseHook::buttonLDown, this, &ScreenshotWindow::onLButtonDown);
-    connect(&m_mouseHook, &MouseHook::buttonLUp, this, &ScreenshotWindow::onLButtonUp);
-    connect(&m_mouseHook, &MouseHook::buttonRDown, this, &ScreenshotWindow::onRButtonDown);
-    connect(&m_mouseHook, &MouseHook::buttonRUp, this, &ScreenshotWindow::onRButtonUp);
 }
 
 ScreenshotWindow::~ScreenshotWindow()
@@ -73,7 +68,6 @@ void ScreenshotWindow::start(const QPixmap &pixmap,
 void ScreenshotWindow::quit()
 {
     // 退出截图工具
-    m_mouseHook.uninstall();
     hide();
     emit sigCancelScreenshot();
 }
@@ -295,9 +289,6 @@ void ScreenshotWindow::activateScreenCapture()
 {
     m_shotRect = QRect();
 
-    // 安装钩子
-    m_mouseHook.install();
-
     setSystemCursor();
 
     const auto &pt = QCursor::pos();
@@ -309,8 +300,6 @@ void ScreenshotWindow::activateScreenCapture()
 
 void ScreenshotWindow::activateScreenEdit()
 {
-    m_mouseHook.uninstall();
-
     restoreSystemCursor();
 
     emit sigCompleteScreenshot();
