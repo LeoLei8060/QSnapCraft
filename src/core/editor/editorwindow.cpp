@@ -413,6 +413,22 @@ void EditorWindow::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
     painter.drawPixmap(0, 0, m_screenshotPixmap);
 
+    // paint shapes
+    if (m_shapes.size() > 0 || m_currentShape) {
+        auto     paintImg = m_screenshotPixmap.toImage();
+        QPainter imgPainter(&paintImg);
+        imgPainter.setRenderHint(QPainter::Antialiasing);
+
+        for (const auto &shape : m_shapes) {
+            shape->draw(imgPainter);
+        }
+        if (m_currentShape) {
+            m_currentShape->draw(imgPainter);
+        }
+        painter.drawImage(0, 0, paintImg);
+    }
+
+    // paint captureRect
     if (m_captureRect.isValid()) {
         QPainterPath windowPath;
         windowPath.addRect(rect());
@@ -455,24 +471,6 @@ void EditorWindow::paintEvent(QPaintEvent *event)
                                    handleSize));
         }
     }
-
-    auto     paintImg = QImage(size(), QImage::Format_ARGB32);
-    QPainter imgPainter(&paintImg);
-
-    // Draw all completed shapes
-    for (const auto &shape : m_shapes) {
-        shape->draw(imgPainter);
-    }
-
-    // Draw current shape if exists
-    if (m_currentShape) {
-        m_currentShape->draw(imgPainter);
-    }
-
-    // TODO: 暂时先取消编辑窗口放大镜功能
-    //    m_magnifier.paint(painter, m_currentImage, QCursor::pos());
-
-    painter.drawImage(0, 0, paintImg);
 }
 
 EditorWindow::ResizeHandle EditorWindow::hitTest(const QPoint &pos) const
