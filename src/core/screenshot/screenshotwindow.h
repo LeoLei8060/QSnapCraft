@@ -31,6 +31,9 @@ public:
     QPixmap getCaptureImage() const { return m_screenshotPixmap; }
     QRect   getCaptureRect() const { return m_shotRect; }
 
+    void setSystemCursor();
+    void restoreSystemCursor();
+
 signals:
     void sigCompleteScreenshot();
     void sigCancelScreenshot();
@@ -58,8 +61,6 @@ private:
     void drawPositionText(QPainter *painter);
     void activateScreenCapture();
     void activateScreenEdit();
-    void setSystemCursor();
-    void restoreSystemCursor();
     void activateFullScreenshot();
 
     QPixmap m_screenshotPixmap;
