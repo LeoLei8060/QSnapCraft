@@ -114,7 +114,7 @@ void ScreenshotWindow::mouseMoveEvent(QMouseEvent *event)
     if (m_isDragging) {
         // 如果正在拖拽，更新选择区域
         m_highlightRect = QRect(m_dragStartPos, currentPos).normalized();
-    } else {
+    } else if (!m_smartInspect) {
         // 临时设置窗口为完全透明并允许鼠标穿透
         HWND hwnd = (HWND) winId();
         SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
@@ -152,23 +152,10 @@ void ScreenshotWindow::mouseReleaseEvent(QMouseEvent *event)
                 m_highlightRect = QRect(m_dragStartPos, endPos).normalized();
             }
             m_shotRect = m_highlightRect;
-            qDebug() << __FUNCTION__ << m_shotRect << m_highlightRect;
             // 切换到编辑状态
             activateScreenEdit();
         }
     }
-}
-
-bool ScreenshotWindow::nativeEvent(const QByteArray &eventType, void *message, long *result)
-{
-    MSG *msg = static_cast<MSG *>(message);
-    if (msg->message == WM_SETCURSOR) {
-        // 强制设置光标为 IDC_CROSS
-        SetCursor(LoadCursor(nullptr, IDC_CROSS));
-        *result = TRUE; // 告诉系统已处理消息
-        return true;
-    }
-    return QWidget::nativeEvent(eventType, message, result);
 }
 
 void ScreenshotWindow::onMouseMove(const POINT &pt)
