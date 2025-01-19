@@ -235,7 +235,7 @@ void EditorWindow::onToolSelected(Toolbar::Tool tool)
         pinImage();
         break;
     case Toolbar::Tool::Exit:
-        close();
+        emit sigEditorFinished();
         break;
     case Toolbar::Tool::Save:
         saveImage();
