@@ -180,6 +180,8 @@ void EditorWindow::updateToolbarPosition()
         if (screen->geometry().contains(x, 1)) {
             if (y + toolbarHeight > screen->geometry().bottom()) {
                 y = m_captureRect.top() - toolbarHeight - spacing;
+                if (y < 0)
+                    y = 0;
             }
             break;
         }
