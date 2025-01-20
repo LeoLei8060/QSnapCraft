@@ -80,12 +80,34 @@ set(SOURCES_UTILS
     src/utils/fontmanager.h
 )
 
+set(SOURCES_SETTINGS
+    src/settings/settingswindow.cpp
+    src/settings/settingswindow.h
+    src/settings/settingswindow.ui
+    src/settings/generalsettings.cpp
+    src/settings/generalsettings.h
+    src/settings/general.ui
+    src/settings/screenshotsettings.cpp
+    src/settings/screenshotsettings.h
+    src/settings/screenshot.ui
+    src/settings/outputsettings.cpp
+    src/settings/outputsettings.h
+    src/settings/output.ui
+    src/settings/controlsettings.cpp
+    src/settings/controlsettings.h
+    src/settings/control.ui
+    src/settings/aboutsettings.cpp
+    src/settings/aboutsettings.h
+    src/settings/about.ui
+)
+
 add_executable(QSnapCraft WIN32
     ${PROJECT_SOURCES}
     ${SOURCES_CORE_EDITOR}
     ${SOURCES_CORE_SCREENSHOT}
     ${SOURCES_CORE_PINBOARD}
     ${SOURCES_UTILS}
+    ${SOURCES_SETTINGS}
 )
 
 target_link_libraries(QSnapCraft PRIVATE
