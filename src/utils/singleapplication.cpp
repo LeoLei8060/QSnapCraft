@@ -136,6 +136,11 @@ void SingleApplication::initialize()
                 m_windowManager.get(),
                 &WindowManager::onEscapePressed);
 
+        connect(systemTray_.get(),
+                &SystemTray::sigSettingActTriggered,
+                m_windowManager.get(),
+                &WindowManager::onSettingActTriggered);
+
         systemTray_->show();
     }
 }

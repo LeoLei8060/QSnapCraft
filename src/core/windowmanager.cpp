@@ -62,6 +62,14 @@ void WindowManager::onEscapePressed()
     switchToIdle();
 }
 
+void WindowManager::onSettingActTriggered()
+{
+    if (!m_settingWindow) {
+        m_settingWindow = std::make_unique<SettingsWindow>();
+    }
+    m_settingWindow->show();
+}
+
 void WindowManager::onCancelScreenshot()
 {
     if (m_state != State::Capturing)

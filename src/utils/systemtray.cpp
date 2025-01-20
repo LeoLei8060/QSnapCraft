@@ -10,31 +10,35 @@ SystemTray::SystemTray(QObject *parent)
 
 void SystemTray::show()
 {
-    trayIcon->show();
+    m_trayIcon->show();
 }
 
 void SystemTray::createActions()
 {
-    screenshotAction = new QAction(tr("Take Screenshot"), this);
-    connect(screenshotAction, &QAction::triggered, this, &SystemTray::startScreenshot);
+    m_screenshotAction = new QAction(tr("Take Screenshot"), this);
+    connect(m_screenshotAction, &QAction::triggered, this, &SystemTray::startScreenshot);
 
-    quitAction = new QAction(tr("Quit"), this);
-    connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
+    m_quitAction = new QAction(tr("Quit"), this);
+    connect(m_quitAction, &QAction::triggered, qApp, &QApplication::quit);
+
+    m_settingAction = new QAction(tr("setting"), this);
+    connect(m_settingAction, &QAction::triggered, this, &SystemTray::sigSettingActTriggered);
 }
 
 void SystemTray::createTrayIcon()
 {
-    trayMenu = std::make_unique<QMenu>();
-    trayMenu->addAction(screenshotAction);
-    trayMenu->addSeparator();
-    trayMenu->addAction(quitAction);
+    m_trayMenu = std::make_unique<QMenu>();
+    m_trayMenu->addAction(m_settingAction);
+    m_trayMenu->addAction(m_screenshotAction);
+    m_trayMenu->addSeparator();
+    m_trayMenu->addAction(m_quitAction);
 
-    trayIcon = std::make_unique<QSystemTrayIcon>();
-    trayIcon->setContextMenu(trayMenu.get());
-    trayIcon->setIcon(QIcon(":/icons/QSnapCraft.ico"));
-    trayIcon->setToolTip("QSnapCraft");
+    m_trayIcon = std::make_unique<QSystemTrayIcon>();
+    m_trayIcon->setContextMenu(m_trayMenu.get());
+    m_trayIcon->setIcon(QIcon(":/icons/QSnapCraft.ico"));
+    m_trayIcon->setToolTip("QSnapCraft");
 
-    connect(trayIcon.get(), &QSystemTrayIcon::activated, this, &SystemTray::onTrayIconActivated);
+    connect(m_trayIcon.get(), &QSystemTrayIcon::activated, this, &SystemTray::onTrayIconActivated);
 }
 
 void SystemTray::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason)

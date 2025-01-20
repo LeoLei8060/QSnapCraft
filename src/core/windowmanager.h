@@ -2,6 +2,7 @@
 
 #include "editor/editorwindow.h"
 #include "screenshot/screenshotwindow.h"
+#include "settings/settingswindow.h"
 #include <memory>
 #include <vector>
 #include <QObject>
@@ -29,6 +30,8 @@ public:
 public slots:
     void onEscapePressed();
 
+    void onSettingActTriggered();
+
 private slots:
     void onCancelScreenshot();   // 截图取消，返回空闲状态
     void onCompleteScreenshot(); // 截图完成，切换到编辑状态
@@ -44,6 +47,7 @@ private:
 
     std::unique_ptr<ScreenshotWindow> m_screenshotWindow;
     std::unique_ptr<EditorWindow>     m_editorWindow;
+    std::unique_ptr<SettingsWindow>   m_settingWindow;
     State                             m_state{State::Idle};
 
     int m_screenWidth{0};
