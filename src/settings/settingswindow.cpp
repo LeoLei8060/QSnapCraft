@@ -9,11 +9,11 @@
 SettingsWindow::SettingsWindow(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::SettingsWindow)
-    , generalSettings(new GeneralSettings(this))
-    , screenshotSettings(new ScreenshotSettings(this))
-    , outputSettings(new OutputSettings(this))
-    , controlSettings(new ControlSettings(this))
-    , aboutSettings(new AboutSettings(this))
+    , m_generalSettings(new GeneralSettings(this))
+    , m_screenshotSettings(new ScreenshotSettings(this))
+    , m_outputSettings(new OutputSettings(this))
+    , m_controlSettings(new ControlSettings(this))
+    , m_aboutSettings(new AboutSettings(this))
 {
     ui->setupUi(this);
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint);
@@ -24,18 +24,18 @@ SettingsWindow::SettingsWindow(QWidget *parent)
 SettingsWindow::~SettingsWindow()
 {
     delete ui;
-    delete generalSettings;
-    delete screenshotSettings;
-    delete outputSettings;
-    delete controlSettings;
-    delete aboutSettings;
+    delete m_generalSettings;
+    delete m_screenshotSettings;
+    delete m_outputSettings;
+    delete m_controlSettings;
+    delete m_aboutSettings;
 }
 
 void SettingsWindow::setupUi()
 {
-    ui->tabWidget->addTab(generalSettings, tr("General"));
-    ui->tabWidget->addTab(screenshotSettings, tr("Screenshot"));
-    ui->tabWidget->addTab(outputSettings, tr("Output"));
-    ui->tabWidget->addTab(controlSettings, tr("Control"));
-    ui->tabWidget->addTab(aboutSettings, tr("About"));
+    ui->tabWidget->addTab(m_generalSettings, tr("General"));
+    ui->tabWidget->addTab(m_screenshotSettings, tr("Screenshot"));
+    ui->tabWidget->addTab(m_outputSettings, tr("Output"));
+    ui->tabWidget->addTab(m_controlSettings, tr("Control"));
+    ui->tabWidget->addTab(m_aboutSettings, tr("About"));
 }

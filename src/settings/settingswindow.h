@@ -25,11 +25,11 @@ private:
 
 private:
     Ui::SettingsWindow *ui;
-    GeneralSettings    *generalSettings;
-    ScreenshotSettings *screenshotSettings;
-    OutputSettings     *outputSettings;
-    ControlSettings    *controlSettings;
-    AboutSettings      *aboutSettings;
+    GeneralSettings    *m_generalSettings;
+    ScreenshotSettings *m_screenshotSettings;
+    OutputSettings     *m_outputSettings;
+    ControlSettings    *m_controlSettings;
+    AboutSettings      *m_aboutSettings;
 };
 
 #endif // SETTINGSWINDOW_H
