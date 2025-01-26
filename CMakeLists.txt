@@ -99,6 +99,8 @@ set(SOURCES_SETTINGS
     src/settings/aboutsettings.cpp
     src/settings/aboutsettings.h
     src/settings/about.ui
+    src/settings/globalconfig.h
+    src/settings/globalconfig.cpp
 )
 
 add_executable(QSnapCraft WIN32
