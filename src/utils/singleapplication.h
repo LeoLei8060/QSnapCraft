@@ -11,6 +11,7 @@ class SystemTray;
 class ShortcutManager;
 class EditorWindow;
 class WindowManager;
+class GlobalConfig;
 
 class SingleApplication : public QApplication
 {
@@ -22,7 +23,10 @@ public:
 
     bool isRunning();
     bool sendMessage(const QString &message);
+    
+    // 初始化和清理
     void initialize();
+    void cleanup();
 
 public slots:
     void startScreenshot();
@@ -30,6 +34,7 @@ public slots:
 
 protected:
     void initializeFonts();
+    void initializeConfig();    // 初始化配置
 
 signals:
     void messageReceived(const QString &message);
@@ -43,15 +48,17 @@ private:
     void cleanupSharedMemory();
 
     QString          appKey_;
-    QSharedMemory    sharedMemory_;
-    QLocalServer    *localServer_;
+    QSharedMemory   sharedMemory_;
+    QLocalServer   *localServer_;
     static const int timeout_ = 1000;
 
-    std::unique_ptr<SystemTray>       systemTray_;
-    std::unique_ptr<ShortcutManager>  shortcutManager_;
-    std::unique_ptr<ScreenshotWindow> m_screenshotWindow;
-    std::unique_ptr<EditorWindow>     m_editWindow;
-    std::unique_ptr<WindowManager>    m_windowManager;
+    // 全局组件
+    std::unique_ptr<GlobalConfig>      globalConfig_;     // 全局配置
+    std::unique_ptr<SystemTray>        systemTray_;       // 系统托盘
+    std::unique_ptr<ShortcutManager>   shortcutManager_;  // 快捷键管理器
+    std::unique_ptr<ScreenshotWindow>  m_screenshotWindow;
+    std::unique_ptr<EditorWindow>      m_editWindow;
+    std::unique_ptr<WindowManager>     m_windowManager;
 };
 
 #endif // SINGLEAPPLICATION_H

@@ -9,6 +9,8 @@ class GlobalConfig : public QObject
     Q_OBJECT
 
 public:
+    ~GlobalConfig();
+
     static GlobalConfig *instance();
 
     // 获取配置数据的接口
@@ -33,7 +35,6 @@ signals:
 
 private:
     GlobalConfig(QObject *parent = nullptr);
-    ~GlobalConfig();
 
     GlobalConfig(const GlobalConfig &) = delete;
     GlobalConfig &operator=(const GlobalConfig &) = delete;

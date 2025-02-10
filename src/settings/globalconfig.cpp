@@ -2,6 +2,8 @@
 #include <QDir>
 #include <QSettings>
 
+#define INI_PATH "config.ini"
+
 GlobalConfig *GlobalConfig::m_instance = nullptr;
 
 //GlobalConfig::GeneralSettingsData GlobalConfig::m_generalData;
@@ -58,84 +60,81 @@ void GlobalConfig::setScreenshotData(const ScreenshotSettingsData &data)
 
 void GlobalConfig::loadConfig()
 {
-    QSettings settings;
+    QSettings settings(INI_PATH, QSettings::IniFormat);
 
     // 加载通用设置
     settings.beginGroup("General");
-    m_generalData.savePath = settings.value("SavePath", QDir::homePath() + "/Pictures/QSnapCraft")
-                                 .toString();
-    m_generalData.autoStart = settings.value("AutoStart", false).toBool();
-    m_generalData.minimizeToTray = settings.value("MinimizeToTray", true).toBool();
-    m_generalData.closeToTray = settings.value("CloseToTray", true).toBool();
-    m_generalData.language = settings.value("Language", "zh_CN").toString();
+    m_generalData.savePath = settings.value("SavePath", "config.ini").toString();
+    m_generalData.autoStart = settings.value("AutoStart", true).toBool();
     settings.endGroup();
 
     // 加载控制设置
     settings.beginGroup("Control");
-    m_controlData.captureHotkey = settings.value("CaptureHotkey", "Ctrl+Alt+A").toString();
-    m_controlData.pinHotkey = settings.value("PinHotkey", "Ctrl+Alt+P").toString();
-    m_controlData.recordHotkey = settings.value("RecordHotkey", "Ctrl+Alt+R").toString();
-    m_controlData.enableSoundEffect = settings.value("EnableSoundEffect", true).toBool();
-    m_controlData.mouseSpeed = settings.value("MouseSpeed", 5).toInt();
+    m_controlData.captureHotkey = settings.value("CaptureHotkey", "F1").toString();
+    m_controlData.captureCopyHotkey = settings.value("CaptureCopyHotkey", "Ctrl+F1").toString();
+    m_controlData.showLastPinHotkey = settings.value("ShowLastPinHotkey", "F3").toString();
+    m_controlData.showPinsHotkey = settings.value("ShowPinsHotkey", "Shift+F3").toString();
+    m_controlData.transparencyHotkey = settings.value("TransparencyHotkey", "Ctrl+Wheel").toString();
+    m_controlData.closePinHotkey = settings.value("ClosePinHotkey", "DoubleLeftClick").toString();
     settings.endGroup();
 
     // 加载输出设置
     settings.beginGroup("Output");
-    m_outputData.imageFormat = settings.value("ImageFormat", "PNG").toString();
-    m_outputData.imageQuality = settings.value("ImageQuality", 90).toInt();
-    m_outputData.videoFormat = settings.value("VideoFormat", "MP4").toString();
-    m_outputData.videoQuality = settings.value("VideoQuality", 75).toInt();
-    m_outputData.preserveAspectRatio = settings.value("PreserveAspectRatio", true).toBool();
+    m_outputData.fileNameFormat
+        = settings.value("FileNameFormat", "QSnapCraft_$yyyy-MM-dd_HH-mm-ss$.png").toString();
+    m_outputData.fastSavePath
+        = settings.value("FastSavePath", "QSnapCraft_$yyyy-MM-dd_HH-mm-ss$.png").toString();
+    m_outputData.fastSaveHotkey = settings.value("FastSaveHotkey", "Ctrl+Shift+S").toString();
     settings.endGroup();
 
     // 加载截图设置
     settings.beginGroup("Screenshot");
-    m_screenshotData.showMagnifier = settings.value("ShowMagnifier", true).toBool();
-    m_screenshotData.showSize = settings.value("ShowSize", true).toBool();
-    m_screenshotData.showMouseCursor = settings.value("ShowMouseCursor", true).toBool();
-    m_screenshotData.magnifierSize = settings.value("MagnifierSize", 150).toInt();
-    m_screenshotData.includeWindowShadow = settings.value("IncludeWindowShadow", true).toBool();
+    m_screenshotData.borderWidth = settings.value("BorderWidth", 1).toUInt();
+    m_screenshotData.doubleLeftAction = settings.value("DoubleLeftAction", 0).toInt();
+    m_screenshotData.bExit_doubleLeft = settings.value("ExitDoubleLeft", false).toBool();
+    m_screenshotData.doubleMiddleAction = settings.value("DoubleMiddleAction", 0).toInt();
+    m_screenshotData.bExit_doubleMiddle = settings.value("ExitDoubleMiddle", false).toBool();
+    m_screenshotData.enterAction = settings.value("EnterAction", 0).toInt();
+    m_screenshotData.bExit_enter = settings.value("ExitEnter", false).toBool();
     settings.endGroup();
 }
 
 void GlobalConfig::saveConfig()
 {
-    QSettings settings;
+    QSettings settings(INI_PATH, QSettings::IniFormat);
 
     // 保存通用设置
     settings.beginGroup("General");
     settings.setValue("SavePath", m_generalData.savePath);
     settings.setValue("AutoStart", m_generalData.autoStart);
-    settings.setValue("MinimizeToTray", m_generalData.minimizeToTray);
-    settings.setValue("CloseToTray", m_generalData.closeToTray);
-    settings.setValue("Language", m_generalData.language);
     settings.endGroup();
 
     // 保存控制设置
     settings.beginGroup("Control");
     settings.setValue("CaptureHotkey", m_controlData.captureHotkey);
-    settings.setValue("PinHotkey", m_controlData.pinHotkey);
-    settings.setValue("RecordHotkey", m_controlData.recordHotkey);
-    settings.setValue("EnableSoundEffect", m_controlData.enableSoundEffect);
-    settings.setValue("MouseSpeed", m_controlData.mouseSpeed);
+    settings.setValue("CaptureCopyHotkey", m_controlData.captureCopyHotkey);
+    settings.setValue("ShowLastPinHotkey", m_controlData.showLastPinHotkey);
+    settings.setValue("ShowPinsHotkey", m_controlData.showPinsHotkey);
+    settings.setValue("TransparencyHotkey", m_controlData.transparencyHotkey);
+    settings.setValue("ClosePinHotkey", m_controlData.closePinHotkey);
     settings.endGroup();
 
     // 保存输出设置
     settings.beginGroup("Output");
-    settings.setValue("ImageFormat", m_outputData.imageFormat);
-    settings.setValue("ImageQuality", m_outputData.imageQuality);
-    settings.setValue("VideoFormat", m_outputData.videoFormat);
-    settings.setValue("VideoQuality", m_outputData.videoQuality);
-    settings.setValue("PreserveAspectRatio", m_outputData.preserveAspectRatio);
+    settings.setValue("FileNameFormat", m_outputData.fileNameFormat);
+    settings.setValue("FastSavePath", m_outputData.fastSavePath);
+    settings.setValue("FastSaveHotkey", m_outputData.fastSaveHotkey);
     settings.endGroup();
 
     // 保存截图设置
     settings.beginGroup("Screenshot");
-    settings.setValue("ShowMagnifier", m_screenshotData.showMagnifier);
-    settings.setValue("ShowSize", m_screenshotData.showSize);
-    settings.setValue("ShowMouseCursor", m_screenshotData.showMouseCursor);
-    settings.setValue("MagnifierSize", m_screenshotData.magnifierSize);
-    settings.setValue("IncludeWindowShadow", m_screenshotData.includeWindowShadow);
+    settings.setValue("BorderWidth", m_screenshotData.borderWidth);
+    settings.setValue("DoubleLeftAction", m_screenshotData.doubleLeftAction);
+    settings.setValue("ExitDoubleLeft", m_screenshotData.bExit_doubleLeft);
+    settings.setValue("DoubleMiddleAction", m_screenshotData.doubleMiddleAction);
+    settings.setValue("ExitDoubleMiddle", m_screenshotData.bExit_doubleMiddle);
+    settings.setValue("EnterAction", m_screenshotData.enterAction);
+    settings.setValue("ExitEnter", m_screenshotData.bExit_enter);
     settings.endGroup();
 
     settings.sync();

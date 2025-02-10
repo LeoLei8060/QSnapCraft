@@ -2,6 +2,7 @@
 #include "core/editor/editorwindow.h"
 #include "core/screenshot/screenshotwindow.h"
 #include "core/windowmanager.h"
+#include "settings/globalconfig.h"
 #include "shortcutmanager.h"
 #include "systemtray.h"
 #include "utils/fontmanager.h"
@@ -14,6 +15,7 @@ SingleApplication::SingleApplication(int &argc, char **argv, const QString &appK
     , appKey_(appKey)
     , sharedMemory_(appKey)
     , localServer_(nullptr)
+    , globalConfig_(nullptr)
     , systemTray_(nullptr)
     , shortcutManager_(nullptr)
     , m_screenshotWindow(nullptr)
@@ -24,6 +26,15 @@ SingleApplication::SingleApplication(int &argc, char **argv, const QString &appK
 
 SingleApplication::~SingleApplication()
 {
+    cleanup();
+}
+
+void SingleApplication::cleanup()
+{
+    // 清理全局配置
+    globalConfig_.reset();
+
+    // 清理其他资源
     cleanupSharedMemory();
     if (localServer_) {
         localServer_->close();
@@ -119,30 +130,47 @@ void SingleApplication::receiveMessage()
 
 void SingleApplication::initialize()
 {
-    if (!isRunning()) {
-        initializeFonts();
-        m_windowManager = std::make_unique<WindowManager>();
+    if (isRunning())
+        return;
 
-        systemTray_ = std::make_unique<SystemTray>();
-        shortcutManager_ = std::make_unique<ShortcutManager>();
+    // 初始化全局配置（最先初始化，因为其他组件可能需要用到配置）
+    initializeConfig();
 
-        connect(shortcutManager_.get(),
-                &ShortcutManager::screenshotTriggered,
-                this,
-                &SingleApplication::startScreenshot);
+    // 初始化字体
+    initializeFonts();
 
-        connect(shortcutManager_.get(),
-                &ShortcutManager::escapePressed,
-                m_windowManager.get(),
-                &WindowManager::onEscapePressed);
+    // 初始化系统托盘
+    systemTray_ = std::make_unique<SystemTray>();
 
-        connect(systemTray_.get(),
-                &SystemTray::sigSettingActTriggered,
-                m_windowManager.get(),
-                &WindowManager::onSettingActTriggered);
+    // 初始化快捷键管理器
+    shortcutManager_ = std::make_unique<ShortcutManager>();
 
-        systemTray_->show();
-    }
+    // 初始化窗口管理器
+    m_windowManager = std::make_unique<WindowManager>();
+
+    // 连接信号槽
+    connect(shortcutManager_.get(),
+            &ShortcutManager::screenshotTriggered,
+            this,
+            &SingleApplication::startScreenshot);
+
+    connect(shortcutManager_.get(),
+            &ShortcutManager::escapePressed,
+            m_windowManager.get(),
+            &WindowManager::onEscapePressed);
+
+    connect(systemTray_.get(),
+            &SystemTray::sigSettingActTriggered,
+            m_windowManager.get(),
+            &WindowManager::onSettingActTriggered);
+
+    systemTray_->show();
+}
+
+void SingleApplication::initializeConfig()
+{
+    // 创建全局配置实例
+    globalConfig_ = std::unique_ptr<GlobalConfig>(GlobalConfig::instance());
 }
 
 void SingleApplication::quit() {}
