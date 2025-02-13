@@ -13,9 +13,9 @@
 
 SingleApplication::SingleApplication(int &argc, char **argv, const QString &appKey)
     : QApplication(argc, argv)
-    , appKey_(appKey)
-    , sharedMemory_(appKey)
-    , localServer_(nullptr)
+    , m_appKey(appKey)
+    , m_sharedMemory(appKey)
+    , m_localServer(nullptr)
     , globalConfig_(nullptr)
     , systemTray_(nullptr)
     , shortcutManager_(nullptr)
@@ -37,28 +37,28 @@ void SingleApplication::cleanup()
 
     // 清理其他资源
     cleanupSharedMemory();
-    if (localServer_) {
-        localServer_->close();
-        delete localServer_;
+    if (m_localServer) {
+        m_localServer->close();
+        delete m_localServer;
     }
 }
 
 bool SingleApplication::initializeSharedMemory()
 {
-    if (sharedMemory_.attach()) {
+    if (m_sharedMemory.attach()) {
         return false;
     }
 
-    if (!sharedMemory_.create(1)) {
+    if (!m_sharedMemory.create(1)) {
         return false;
     }
 
-    localServer_ = new QLocalServer(this);
-    connect(localServer_, &QLocalServer::newConnection, this, &SingleApplication::handleConnection);
+    m_localServer = new QLocalServer(this);
+    connect(m_localServer, &QLocalServer::newConnection, this, &SingleApplication::handleConnection);
 
-    QLocalServer::removeServer(appKey_);
+    QLocalServer::removeServer(m_appKey);
 
-    if (!localServer_->listen(appKey_)) {
+    if (!m_localServer->listen(m_appKey)) {
         return false;
     }
 
@@ -67,14 +67,14 @@ bool SingleApplication::initializeSharedMemory()
 
 void SingleApplication::cleanupSharedMemory()
 {
-    if (sharedMemory_.isAttached()) {
-        sharedMemory_.detach();
+    if (m_sharedMemory.isAttached()) {
+        m_sharedMemory.detach();
     }
 }
 
 bool SingleApplication::isRunning()
 {
-    return !localServer_;
+    return !m_localServer;
 }
 
 bool SingleApplication::sendMessage(const QString &message)
@@ -84,9 +84,9 @@ bool SingleApplication::sendMessage(const QString &message)
     }
 
     QLocalSocket socket;
-    socket.connectToServer(appKey_, QIODevice::WriteOnly);
+    socket.connectToServer(m_appKey, QIODevice::WriteOnly);
 
-    if (!socket.waitForConnected(timeout_)) {
+    if (!socket.waitForConnected(m_timeout)) {
         return false;
     }
 
@@ -95,7 +95,7 @@ bool SingleApplication::sendMessage(const QString &message)
     stream << message;
 
     socket.write(buffer);
-    if (!socket.waitForBytesWritten(timeout_)) {
+    if (!socket.waitForBytesWritten(m_timeout)) {
         return false;
     }
 
@@ -105,7 +105,7 @@ bool SingleApplication::sendMessage(const QString &message)
 
 void SingleApplication::handleConnection()
 {
-    QLocalSocket *socket = localServer_->nextPendingConnection();
+    QLocalSocket *socket = m_localServer->nextPendingConnection();
     if (!socket) {
         return;
     }
