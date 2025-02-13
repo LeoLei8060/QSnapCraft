@@ -15,8 +15,15 @@ public:
     explicit GeneralSettings(QWidget *parent = nullptr);
     ~GeneralSettings();
 
+private slots:
+    void onAutoStartChanged(bool checked);
+    void onOpenFolderClicked();
+    void onOpenFileClicked();
+    void onConfigChanged();
+
+private:
     void loadSettings();
-    void saveSettings();
+    void updateConfigPath(const QString &path);
 
 private:
     Ui::GeneralSettings *ui;
