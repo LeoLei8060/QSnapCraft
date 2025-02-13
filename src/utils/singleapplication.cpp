@@ -6,6 +6,7 @@
 #include "shortcutmanager.h"
 #include "systemtray.h"
 #include "utils/fontmanager.h"
+#include "utils/systemutils.h"
 #include <QDataStream>
 #include <QDebug>
 #include <QLocalSocket>
@@ -135,6 +136,10 @@ void SingleApplication::initialize()
 
     // 初始化全局配置（最先初始化，因为其他组件可能需要用到配置）
     initializeConfig();
+
+    // 同步开机自启动状态
+    const auto &generalData = GlobalConfig::instance()->generalData();
+    SystemUtils::setAutoStart(generalData.autoStart);
 
     // 初始化字体
     initializeFonts();
