@@ -81,17 +81,19 @@ void GlobalConfig::loadConfig()
     // 加载输出设置
     settings.beginGroup("Output");
     m_outputData.fileNameFormat
-        = settings.value("FileNameFormat", "QSnapCraft_$yyyy-MM-dd_HH-mm-ss$.png").toString();
-    m_outputData.fastSavePath
-        = settings.value("FastSavePath", "QSnapCraft_$yyyy-MM-dd_HH-mm-ss$.png").toString();
+        = settings.value("FileNameFormat", "QSnapCraft_$yyyy-$MM-$dd_$HH-$mm-$ss.png").toString();
+    m_outputData.fastSavePath = settings
+                                    .value("FastSavePath",
+                                           "FastPictures/QSnapCraft_$yyyy-$MM-$dd_$HH-$mm-$ss.png")
+                                    .toString();
     m_outputData.fastSaveHotkey = settings.value("FastSaveHotkey", "Ctrl+Shift+S").toString();
     settings.endGroup();
 
     // 加载截图设置
     settings.beginGroup("Screenshot");
-    m_screenshotData.borderWidth = settings.value("BorderWidth", 1).toUInt();
-    m_screenshotData.doubleLeftAction = settings.value("DoubleLeftAction", 0).toInt();
-    m_screenshotData.bExit_doubleLeft = settings.value("ExitDoubleLeft", false).toBool();
+    m_screenshotData.borderWidth = settings.value("BorderWidth", 2).toUInt();
+    m_screenshotData.doubleLeftAction = settings.value("DoubleLeftAction", 2).toInt();
+    m_screenshotData.bExit_doubleLeft = settings.value("ExitDoubleLeft", true).toBool();
     m_screenshotData.doubleMiddleAction = settings.value("DoubleMiddleAction", 0).toInt();
     m_screenshotData.bExit_doubleMiddle = settings.value("ExitDoubleMiddle", false).toBool();
     m_screenshotData.enterAction = settings.value("EnterAction", 0).toInt();

@@ -24,9 +24,10 @@ struct ControlSettingsData
 // 输出设置数据结构
 struct OutputSettingsData
 {
-    QString fileNameFormat = "QSnapCraft_$yyyy-MM-dd_HH-mm-ss$.png"; // 手动保存文件名格式
+    QString fileNameFormat = "QSnapCraft_$yyyy-$MM-$dd_$HH-$mm-$ss.png"; // 手动保存文件名格式
     // NOTE: fastSavePath需要在软件初始化时自动设置（添加系统的桌面路径作为前缀）
-    QString fastSavePath = "QSnapCraft_$yyyy-MM-dd_HH-mm-ss$.png"; // 快捷保存路径（带文件名格式）
+    QString fastSavePath
+        = "FastPictures/QSnapCraft_$yyyy-$MM-$dd_$HH-$mm-$ss.png"; // 快捷保存路径（带文件名格式）
     QString fastSaveHotkey = "Ctrl+Shift+S";                       // 快捷保存的快捷键
 };
 
