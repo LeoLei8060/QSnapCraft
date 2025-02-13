@@ -5,6 +5,7 @@
 #include "generalsettings.h"
 #include "outputsettings.h"
 #include "screenshotsettings.h"
+#include <QCloseEvent>
 
 SettingsWindow::SettingsWindow(QWidget *parent)
     : QWidget(parent)
@@ -16,7 +17,7 @@ SettingsWindow::SettingsWindow(QWidget *parent)
     , m_aboutSettings(new AboutSettings(this))
 {
     ui->setupUi(this);
-    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint);
+    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowStaysOnTopHint);
 
     setupUi();
 }
@@ -38,4 +39,10 @@ void SettingsWindow::setupUi()
     ui->tabWidget->addTab(m_outputSettings, tr("Output"));
     ui->tabWidget->addTab(m_controlSettings, tr("Control"));
     ui->tabWidget->addTab(m_aboutSettings, tr("About"));
+}
+
+void SettingsWindow::closeEvent(QCloseEvent *event)
+{
+    hide();  // 隐藏窗口而不是关闭
+    event->ignore();  // 忽略关闭事件
 }

@@ -20,6 +20,9 @@ public:
     explicit SettingsWindow(QWidget *parent = nullptr);
     ~SettingsWindow();
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     void setupUi();
 
