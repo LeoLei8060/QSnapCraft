@@ -34,20 +34,20 @@ struct OutputSettingsData
 struct ScreenshotSettingsData
 {
     enum SS_Action {
-        SS_None = 0,
-        SS_CopytoClipboard,
-        SS_PastetoScreen,
-        SS_SavetoFile,
-        SS_FastSave
+        SS_None = 0,        // 无
+        SS_CopytoClipboard, // 复制到剪贴板
+        SS_PastetoScreen,   // 贴到屏幕
+        SS_SavetoFile,      // 保存到文件
+        SS_FastSave         // 快捷保存
     };
 
-    uint borderWidth;        // 边框宽度
-    int  doubleLeftAction;   // 左键双击的动作
-    bool bExit_doubleLeft;   // 左键双击是否退出截屏
-    int  doubleMiddleAction; // 中键双击的动作
-    bool bExit_doubleMiddle; // 中键双击是否退出截屏
-    int  enterAction;        // 左键双击的动作
-    bool bExit_enter;        // 左键双击是否退出截屏
+    uint borderWidth{2};            // 边框宽度
+    int  doubleLeftAction{2};       // 左键双击的动作
+    bool bExit_doubleLeft{true};    // 左键双击是否退出截屏
+    int  doubleMiddleAction{0};     // 中键双击的动作
+    bool bExit_doubleMiddle{false}; // 中键双击是否退出截屏
+    int  enterAction{0};            // 回车键的动作
+    bool bExit_enter{false};        // 回车键是否退出截屏
 };
 
 #endif // SETTINGSDATA_H
