@@ -78,6 +78,8 @@ set(SOURCES_UTILS
     src/utils/magnifier.h
     src/utils/fontmanager.cpp
     src/utils/fontmanager.h
+    src/utils/systemutils.h
+    src/utils/systemutils.cpp
 )
 
 set(SOURCES_SETTINGS
