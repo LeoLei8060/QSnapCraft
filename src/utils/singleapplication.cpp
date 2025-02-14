@@ -18,7 +18,6 @@ SingleApplication::SingleApplication(int &argc, char **argv, const QString &appK
     , m_localServer(nullptr)
     , globalConfig_(nullptr)
     , systemTray_(nullptr)
-    , shortcutManager_(nullptr)
     , m_screenshotWindow(nullptr)
 {
     initializeSharedMemory();
@@ -147,22 +146,26 @@ void SingleApplication::initialize()
     // 初始化系统托盘
     systemTray_ = std::make_unique<SystemTray>();
 
-    // 初始化快捷键管理器
-    shortcutManager_ = std::make_unique<ShortcutManager>();
-
     // 初始化窗口管理器
     m_windowManager = std::make_unique<WindowManager>();
 
-    // 连接信号槽
-    connect(shortcutManager_.get(),
-            &ShortcutManager::screenshotTriggered,
-            this,
-            &SingleApplication::startScreenshot);
+    // 初始化注册快捷键
+    initializeHotKey();
 
-    connect(shortcutManager_.get(),
-            &ShortcutManager::escapePressed,
-            m_windowManager.get(),
-            &WindowManager::onEscapePressed);
+    // 连接信号槽
+    connect(ShortcutManager::instance(), &ShortcutManager::hotkeyTriggered, this, [this](int id) {
+        auto eID = (ShortcutManager::EKeyType) id;
+        switch (eID) {
+        case ShortcutManager::captureKey:
+            this->startScreenshot();
+            break;
+        case ShortcutManager::EscapeKey:
+            m_windowManager->onEscapePressed();
+            break;
+        default:
+            break;
+        }
+    });
 
     connect(systemTray_.get(),
             &SystemTray::sigSettingActTriggered,
@@ -176,6 +179,34 @@ void SingleApplication::initializeConfig()
 {
     // 创建全局配置实例
     globalConfig_ = std::unique_ptr<GlobalConfig>(GlobalConfig::instance());
+}
+
+void SingleApplication::initializeHotKey()
+{
+    auto        shortcutManager = ShortcutManager::instance();
+    const auto &controlData = GlobalConfig::instance()->controlData();
+
+    // 注册自定义快捷键
+    if (!controlData.captureHotkey.isEmpty()) {
+        shortcutManager->registerHotkey(controlData.captureHotkey, ShortcutManager::captureKey);
+    }
+
+    if (!controlData.captureCopyHotkey.isEmpty()) {
+        shortcutManager->registerHotkey(controlData.captureCopyHotkey,
+                                        ShortcutManager::captureCopyKey);
+    }
+
+    if (!controlData.showLastPinHotkey.isEmpty()) {
+        shortcutManager->registerHotkey(controlData.showLastPinHotkey,
+                                        ShortcutManager::showLastPinKey);
+    }
+
+    if (!controlData.showPinsHotkey.isEmpty()) {
+        shortcutManager->registerHotkey(controlData.showPinsHotkey, ShortcutManager::showPinsKey);
+    }
+
+    // 注册内置快捷键
+    shortcutManager->registerHotkey("Esc", ShortcutManager::EscapeKey);
 }
 
 void SingleApplication::quit() {}

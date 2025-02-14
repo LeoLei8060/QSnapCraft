@@ -8,7 +8,6 @@
 
 class ScreenshotWindow;
 class SystemTray;
-class ShortcutManager;
 class EditorWindow;
 class WindowManager;
 class GlobalConfig;
@@ -35,6 +34,7 @@ public slots:
 protected:
     void initializeFonts();
     void initializeConfig(); // 初始化配置
+    void initializeHotKey();
 
 signals:
     void messageReceived(const QString &message);
@@ -53,9 +53,8 @@ private:
     static const int m_timeout = 1000;
 
     // 全局组件
-    std::unique_ptr<GlobalConfig>     globalConfig_;    // 全局配置
-    std::unique_ptr<SystemTray>       systemTray_;      // 系统托盘
-    std::unique_ptr<ShortcutManager>  shortcutManager_; // 快捷键管理器
+    std::unique_ptr<GlobalConfig>     globalConfig_; // 全局配置
+    std::unique_ptr<SystemTray>       systemTray_;   // 系统托盘
     std::unique_ptr<ScreenshotWindow> m_screenshotWindow;
     std::unique_ptr<EditorWindow>     m_editWindow;
     std::unique_ptr<WindowManager>    m_windowManager;
