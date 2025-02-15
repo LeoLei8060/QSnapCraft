@@ -21,6 +21,8 @@ public:
     bool unregisterHotkey(int id);
     // 注销所有快捷键
     void unregisterAllHotkeys();
+    // 判断快捷键是否注册成功
+    bool isHotkeyRegistered(const QString &shortcut, int id) const;
 
 signals:
     // 当快捷键被触发时发出信号

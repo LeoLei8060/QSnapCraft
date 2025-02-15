@@ -195,3 +195,30 @@ UINT ShortcutManager::getModifiers(const QStringList &keys)
 
     return modifiers;
 }
+
+bool ShortcutManager::isHotkeyRegistered(const QString &shortcut, int id) const
+{
+    // 检查ID是否已注册
+    if (!m_registeredHotkeys.contains(id)) {
+        return false;
+    }
+
+    // 解析快捷键字符串
+    QStringList keys = parseShortcutString(shortcut);
+    if (keys.isEmpty()) {
+        return false;
+    }
+
+    // 获取修饰键和主键
+    UINT modifiers = getModifiers(keys);
+    UINT vk = getVirtualKeyCode(keys.last()); // 最后一个是主键
+    if (vk == 0) {
+        return false;
+    }
+
+    // 获取已注册的快捷键信息
+    const auto &registeredHotkey = m_registeredHotkeys[id];
+    
+    // 比较虚拟键码和修饰键是否匹配
+    return registeredHotkey.first == vk && registeredHotkey.second == modifiers;
+}
