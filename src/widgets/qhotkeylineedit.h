@@ -28,9 +28,11 @@ public:
 
     void setState(State state);
 
+    void resetText(const QString &text);
+
 signals:
     void sigStatusChanged(const QString &status);
-    void sigKeyPressed(const QString &key, Qt::KeyboardModifiers modifiers);
+    void sigKeyPressed(const QString &key);
     void sigClearKey();
 
 protected:

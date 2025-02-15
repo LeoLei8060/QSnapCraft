@@ -38,6 +38,11 @@ void QHotKeyLineEdit::setState(State state)
     emit sigStatusChanged(stateToString(m_current_state));
 }
 
+void QHotKeyLineEdit::resetText(const QString &text)
+{
+    emit sigKeyPressed(text);
+}
+
 bool QHotKeyLineEdit::eventFilter(QObject *watched, QEvent *event)
 {
     if (watched == m_lineEdit) {
@@ -186,7 +191,7 @@ void QHotKeyLineEdit::handleKeyEvent(QKeyEvent *event)
         keys << QKeySequence(key).toString();
 
         // 发送组合键字符串
-        emit sigKeyPressed(keys.join("+"), modifiers);
+        emit sigKeyPressed(keys.join("+"));
     } else {
         // 非Setting状态下，阻止所有键盘输入
         event->accept();
