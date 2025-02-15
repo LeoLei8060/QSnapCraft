@@ -45,7 +45,7 @@
        <number>6</number>
       </property>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1">
         <item>
          <widget class="QLabel" name="label">
           <property name="minimumSize">
@@ -60,39 +60,19 @@
          </widget>
         </item>
         <item>
-         <widget class="QLineEdit" name="lineEdit">
+         <widget class="QHotKeyLineEdit" name="lineEdit" native="true">
           <property name="minimumSize">
            <size>
             <width>85</width>
             <height>0</height>
            </size>
           </property>
-          <property name="inputMask">
-           <string>按下快捷键</string>
-          </property>
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Restore">
-          <property name="text">
-           <string>重置</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Apply">
-          <property name="text">
-           <string>应用</string>
-          </property>
          </widget>
         </item>
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,1,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,1">
         <item>
          <widget class="QLabel" name="label_2">
           <property name="minimumSize">
@@ -107,39 +87,19 @@
          </widget>
         </item>
         <item>
-         <widget class="QLineEdit" name="lineEdit_2">
+         <widget class="QHotKeyLineEdit" name="lineEdit_2" native="true">
           <property name="minimumSize">
            <size>
             <width>85</width>
             <height>0</height>
            </size>
           </property>
-          <property name="inputMask">
-           <string>按下快捷键</string>
-          </property>
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Restore_2">
-          <property name="text">
-           <string>重置</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Apply_2">
-          <property name="text">
-           <string>应用</string>
-          </property>
          </widget>
         </item>
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,1,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,1">
         <item>
          <widget class="QLabel" name="label_3">
           <property name="minimumSize">
@@ -154,39 +114,19 @@
          </widget>
         </item>
         <item>
-         <widget class="QLineEdit" name="lineEdit_3">
+         <widget class="QHotKeyLineEdit" name="lineEdit_3" native="true">
           <property name="minimumSize">
            <size>
             <width>85</width>
             <height>0</height>
            </size>
           </property>
-          <property name="inputMask">
-           <string>按下快捷键</string>
-          </property>
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Restore_3">
-          <property name="text">
-           <string>重置</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Apply_3">
-          <property name="text">
-           <string>应用</string>
-          </property>
          </widget>
         </item>
        </layout>
       </item>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0,1,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0,1">
         <item>
          <widget class="QLabel" name="label_4">
           <property name="minimumSize">
@@ -201,32 +141,12 @@
          </widget>
         </item>
         <item>
-         <widget class="QLineEdit" name="lineEdit_4">
+         <widget class="QHotKeyLineEdit" name="lineEdit_4" native="true">
           <property name="minimumSize">
            <size>
             <width>85</width>
             <height>0</height>
            </size>
-          </property>
-          <property name="inputMask">
-           <string>按下快捷键</string>
-          </property>
-          <property name="readOnly">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Restore_4">
-          <property name="text">
-           <string>重置</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="btn_Apply_4">
-          <property name="text">
-           <string>应用</string>
           </property>
          </widget>
         </item>
@@ -437,6 +357,14 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QHotKeyLineEdit</class>
+   <extends>QWidget</extends>
+   <header location="global">qhotkeylineedit.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
