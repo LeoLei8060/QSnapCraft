@@ -14,10 +14,10 @@ public:
     static GlobalConfig *instance();
 
     // 获取配置数据的接口
-    const GeneralSettingsData    &generalData() const { return m_generalData; }
-    const ControlSettingsData    &controlData() const { return m_controlData; }
-    const OutputSettingsData     &outputData() const { return m_outputData; }
-    const ScreenshotSettingsData &screenshotData() const { return m_screenshotData; }
+    GeneralSettingsData    &generalData() { return m_generalData; }
+    ControlSettingsData    &controlData() { return m_controlData; }
+    OutputSettingsData     &outputData() { return m_outputData; }
+    ScreenshotSettingsData &screenshotData() { return m_screenshotData; }
 
     // 修改配置数据的接口
     void setGeneralData(const GeneralSettingsData &data);
