@@ -3,5 +3,8 @@
         <file>icons/app.svg</file>
         <file>iconfont/iconfont.ttf</file>
         <file>icons/QSnapCraft.ico</file>
+        <file>icons/delete.png</file>
+        <file>icons/error.png</file>
+        <file>icons/valid.png</file>
     </qresource>
 </RCC>
