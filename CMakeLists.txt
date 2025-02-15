@@ -106,6 +106,11 @@ set(SOURCES_SETTINGS
     src/settings/settingsdata.h
 )
 
+set(SOURCES_WIDGETS
+    src/widgets/qhotkeylineedit.h
+    src/widgets/qhotkeylineedit.cpp
+)
+
 add_executable(QSnapCraft WIN32
     ${PROJECT_SOURCES}
     ${SOURCES_CORE_EDITOR}
@@ -113,6 +118,7 @@ add_executable(QSnapCraft WIN32
     ${SOURCES_CORE_PINBOARD}
     ${SOURCES_UTILS}
     ${SOURCES_SETTINGS}
+    ${SOURCES_WIDGETS}
 )
 
 target_link_libraries(QSnapCraft PRIVATE
@@ -123,4 +129,5 @@ target_link_libraries(QSnapCraft PRIVATE
 
 target_include_directories(QSnapCraft PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/widgets
 )
