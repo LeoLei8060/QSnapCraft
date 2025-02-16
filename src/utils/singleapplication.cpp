@@ -171,6 +171,10 @@ void SingleApplication::initialize()
             &SystemTray::sigSettingActTriggered,
             m_windowManager.get(),
             &WindowManager::onSettingActTriggered);
+    connect(systemTray_.get(),
+            &SystemTray::sigScreenshotActTriggered,
+            this,
+            &SingleApplication::startScreenshot);
 
     systemTray_->show();
 }

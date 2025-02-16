@@ -16,6 +16,7 @@ public:
 
 signals:
     void sigSettingActTriggered();
+    void sigScreenshotActTriggered();
 
 private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);
