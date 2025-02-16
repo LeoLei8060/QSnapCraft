@@ -16,15 +16,16 @@ class WindowManager : public QObject
 public:
     // 截图工具状态
     enum class State {
-        Idle,      // 空闲状态
-        Capturing, // 正在截屏
-        Editing    // 正在编辑
+        Idle,             // 空闲状态
+        Capturing,        // 正在截屏
+        CapturingAndCopy, // 正在截屏（截屏后自动复制）
+        Editing           // 正在编辑
     };
 
     explicit WindowManager(QObject *parent = nullptr);
     ~WindowManager();
 
-    void startCapture(); // 开始截图
+    void startCapture(bool bCopy = false); // 开始截图
     bool isCapturing() const { return m_state == State::Capturing; }
 
 public slots:

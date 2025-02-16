@@ -28,7 +28,7 @@ public:
     void cleanup();
 
 public slots:
-    void startScreenshot();
+    void startScreenshot(bool bCopy = false);
     void quit();
 
 protected:

@@ -159,6 +159,9 @@ void SingleApplication::initialize()
         case ShortcutManager::captureKey:
             this->startScreenshot();
             break;
+        case ShortcutManager::captureCopyKey:
+            this->startScreenshot(true);
+            break;
         case ShortcutManager::EscapeKey:
             m_windowManager->onEscapePressed();
             break;
@@ -171,10 +174,9 @@ void SingleApplication::initialize()
             &SystemTray::sigSettingActTriggered,
             m_windowManager.get(),
             &WindowManager::onSettingActTriggered);
-    connect(systemTray_.get(),
-            &SystemTray::sigScreenshotActTriggered,
-            this,
-            &SingleApplication::startScreenshot);
+    connect(systemTray_.get(), &SystemTray::sigScreenshotActTriggered, this, [this]() {
+        this->startScreenshot();
+    });
 
     systemTray_->show();
 }
@@ -224,7 +226,7 @@ void SingleApplication::initializeFonts()
     }
 }
 
-void SingleApplication::startScreenshot()
+void SingleApplication::startScreenshot(bool bCopy)
 {
-    m_windowManager->startCapture();
+    m_windowManager->startCapture(bCopy);
 }

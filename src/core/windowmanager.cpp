@@ -38,7 +38,7 @@ WindowManager::WindowManager(QObject *parent)
 
 WindowManager::~WindowManager() {}
 
-void WindowManager::startCapture()
+void WindowManager::startCapture(bool bCopy)
 {
     if (m_state != State::Idle) {
         return;
@@ -48,7 +48,10 @@ void WindowManager::startCapture()
 
     m_originalCursor = GetCursor();
 
-    m_state = State::Capturing;
+    if (bCopy)
+        m_state = State::CapturingAndCopy;
+    else
+        m_state = State::Capturing;
     m_screenshotWindow->start(m_screenshotPixmap,
                               m_screenshotImg,
                               m_screenLeft,
@@ -85,19 +88,23 @@ void WindowManager::onCancelScreenshot()
 
 void WindowManager::onCompleteScreenshot()
 {
-    if (m_state != State::Capturing)
+    if (m_state != State::Capturing && m_state != State::CapturingAndCopy)
         return;
 
     // 获取截图数据
     QPixmap image = m_screenshotWindow->getCaptureImage();
     QRect   rect = m_screenshotWindow->getCaptureRect();
 
-    // 切换到编辑状态
-    switchToEdit();
+    if (m_state == State::Capturing) {
+        // 切换到编辑状态
+        switchToEdit();
 
-    // 设置编辑窗口数据
-    m_editorWindow->start(image, rect);
-    m_editorWindow->show();
+        // 设置编辑窗口数据
+        m_editorWindow->start(image, rect);
+        m_editorWindow->show();
+    } else if (m_state == State::CapturingAndCopy) {
+        EditorWindow::saveToClipboard(image.copy(rect));
+    }
 }
 
 void WindowManager::onCancelEditor()
