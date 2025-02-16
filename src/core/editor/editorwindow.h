@@ -66,6 +66,8 @@ public:
     void undo();
     void redo();
 
+    static void saveToClipboard(const QPixmap &pixmap);
+
 signals:
     void sigEditorFinished();
     void sigCancelEditor();

@@ -160,6 +160,15 @@ void EditorWindow::redo()
     }
 }
 
+void EditorWindow::saveToClipboard(const QPixmap &pixmap)
+{
+    // 获取系统剪贴板
+    QClipboard *clipboard = QApplication::clipboard();
+
+    // 将图片复制到剪贴板
+    clipboard->setPixmap(pixmap);
+}
+
 void EditorWindow::updateToolbarPosition()
 {
     const int toolbarWidth = m_toolbar.width();
@@ -316,11 +325,7 @@ void EditorWindow::copyImage()
     shapesToImage(tempPixmap);
     QPixmap capturedPixmap = tempPixmap.copy(m_captureRect);
 
-    // 获取系统剪贴板
-    QClipboard *clipboard = QApplication::clipboard();
-
-    // 将图片复制到剪贴板
-    clipboard->setPixmap(capturedPixmap);
+    EditorWindow::saveToClipboard(capturedPixmap);
 
     editorFinished();
 }
