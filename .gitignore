@@ -34,3 +34,16 @@
 *.user
 build
 docs
+config.ini
+FastPictures/
+
+# AI and agent configuration is local-only and must never be committed.
+AGENTS.md
+CLAUDE.md
+AI_NAMING_CONVENTIONS.md
+.codex/
+.cursor/
+.cursorrules
+.windsurf/
+.aider*
+.github/copilot-instructions.md
