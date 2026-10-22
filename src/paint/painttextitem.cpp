@@ -45,6 +45,22 @@ void PaintTextItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
         painter->setPen(selection_pen);
         painter->setBrush(Qt::NoBrush);
         painter->drawRect(boundingRect().adjusted(1, 1, -1, -1));
+        const QRectF bounds = boundingRect();
+        const QPointF handles[] = {
+            bounds.topLeft(),
+            QPointF(bounds.center().x(), bounds.top()),
+            bounds.topRight(),
+            QPointF(bounds.right(), bounds.center().y()),
+            bounds.bottomRight(),
+            QPointF(bounds.center().x(), bounds.bottom()),
+            bounds.bottomLeft(),
+            QPointF(bounds.left(), bounds.center().y()),
+        };
+        painter->setPen(QPen(Qt::black, 1));
+        painter->setBrush(Qt::white);
+        for (const QPointF &handle : handles) {
+            painter->drawRect(QRectF(handle.x() - 3, handle.y() - 3, 6, 6));
+        }
         painter->restore();
     }
 }
@@ -60,7 +76,8 @@ PaintTextItem *PaintTextItem::clone() const
     copy->setBackgroundEnabled(m_hasBackground);
     copy->setPos(pos());
     copy->setRotation(rotation());
-    copy->setScale(scale());
+    copy->setTransform(transform());
+    copy->setTransformOriginPoint(transformOriginPoint());
     copy->setZValue(zValue());
     return copy;
 }

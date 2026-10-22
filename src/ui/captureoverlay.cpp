@@ -49,6 +49,7 @@ CaptureOverlay::CaptureOverlay(QWidget *parent)
         paintScene()->setTool(tool);
         m_paintBar->setCurrentColor(paintScene()->color());
         updatePaintBarPosition();
+        updateInteractionCursor();
     });
     connect(m_paintBar, &PaintBar::sigColorChanged, paintScene(), &PaintScene::setColor);
     connect(m_paintBar, &PaintBar::sigFilledChanged, paintScene(), &PaintScene::setFilled);
@@ -68,8 +69,10 @@ CaptureOverlay::CaptureOverlay(QWidget *parent)
         if (command == CaptureCommand::kCancel) {
             emit sigCancelRequested();
         } else if (command == CaptureCommand::kUndo) {
+            paintScene()->stopItemEditing();
             paintScene()->undoStack()->undo();
         } else if (command == CaptureCommand::kRedo) {
+            paintScene()->stopItemEditing();
             paintScene()->undoStack()->redo();
         } else if (command == CaptureCommand::kClearAll) {
             paintScene()->clearAll();
@@ -140,7 +143,7 @@ void CaptureOverlay::setPhase(CapturePhase phase)
             m_paintBar->raise();
         }
     }
-    setCursor(selecting ? Qt::CrossCursor : Qt::ArrowCursor);
+    updateInteractionCursor();
     viewport()->update();
 }
 
@@ -168,9 +171,10 @@ void CaptureOverlay::enterAnnotating()
     m_hoverRect = {};
     m_hoverHierarchy.clear();
     setPhase(CapturePhase::kAnnotating);
-    paintScene()->setTool(PaintTool::kRectangle);
-    m_paintBar->setCurrentTool(PaintTool::kRectangle);
+    paintScene()->setTool(PaintTool::kNone);
+    m_paintBar->setCurrentTool(PaintTool::kNone);
     m_paintBar->setCurrentColor(paintScene()->color());
+    updateInteractionCursor();
 }
 
 QImage CaptureOverlay::renderSelection() const
@@ -247,27 +251,53 @@ void CaptureOverlay::mousePressEvent(QMouseEvent *event)
     m_pointerPosition = event->position().toPoint();
 
     if (m_phase == CapturePhase::kAnnotating) {
+        const QRect selection = m_selectionState.current();
+        const bool  inside_selection = selection.contains(m_pointerPosition);
+        const bool  drawing_tool = paintScene()->tool() != PaintTool::kNone;
+        if (drawing_tool && !inside_selection
+            && (event->button() == Qt::LeftButton || event->button() == Qt::RightButton)) {
+            event->accept();
+            return;
+        }
         if (event->button() == Qt::RightButton) {
+            if (paintScene()->hasEditableItem()) {
+                paintScene()->stopItemEditing();
+                updateInteractionCursor();
+                event->accept();
+                return;
+            }
             emit sigCancelRequested();
             return;
         }
-        if (event->button() == Qt::LeftButton && m_options.showAnchors) {
-            const SelectionEdges edges = selectionEdgesAt(m_pointerPosition);
+        if (event->button() == Qt::LeftButton && !drawing_tool) {
+            if (paintScene()->itemHandleAt(m_pointerPosition) != PaintItemHandle::kNone) {
+                PaintView::mousePressEvent(event);
+                return;
+            }
+            SelectionEdges edges = selectionEdgesAt(m_pointerPosition);
+            if (edges == SelectionEdge::kNone) {
+                edges = selectionEdgesOutsideAt(m_pointerPosition);
+            }
             if (edges != SelectionEdge::kNone) {
+                paintScene()->stopItemEditing();
                 m_activeEdges = edges;
                 m_isResizing = true;
                 m_selectionState.beginResize(edges, event->modifiers().testFlag(Qt::AltModifier));
                 return;
             }
-        }
-        if (event->button() == Qt::LeftButton && !m_selectionState.current().contains(m_pointerPosition)) {
-            paintScene()->clearAll();
-            m_selectionState.clear();
-            setPhase(CapturePhase::kSelecting);
-            m_selectionState.beginDrag(m_pointerPosition);
-            m_isDragging = true;
-            m_adopting = false;
-            return;
+            if (inside_selection) {
+                QGraphicsItem *hit_item = paintScene()->itemAt(m_pointerPosition, QTransform());
+                if (hit_item != nullptr && hit_item == paintScene()->editableItem()) {
+                    PaintView::mousePressEvent(event);
+                    return;
+                }
+                paintScene()->stopItemEditing();
+                m_isMoving = true;
+                m_selectionState.beginMove(m_pointerPosition);
+                updatePaintBarPosition();
+                viewport()->update();
+                return;
+            }
         }
         PaintView::mousePressEvent(event);
         return;
@@ -309,8 +339,15 @@ void CaptureOverlay::mouseMoveEvent(QMouseEvent *event)
     m_pointerPosition = event->position().toPoint();
 
     if (m_phase == CapturePhase::kAnnotating) {
+        updateInteractionCursor();
         if (m_isResizing && event->buttons().testFlag(Qt::LeftButton)) {
             m_selectionState.resizeTo(m_pointerPosition);
+            updatePaintBarPosition();
+            viewport()->update();
+            return;
+        }
+        if (m_isMoving && event->buttons().testFlag(Qt::LeftButton)) {
+            m_selectionState.moveTo(m_pointerPosition);
             updatePaintBarPosition();
             viewport()->update();
             return;
@@ -344,6 +381,15 @@ void CaptureOverlay::mouseReleaseEvent(QMouseEvent *event)
             m_activeEdges = SelectionEdge::kNone;
             m_isResizing = false;
             updatePaintBarPosition();
+            viewport()->update();
+            return;
+        }
+        if (m_isMoving && event->button() == Qt::LeftButton) {
+            m_selectionState.moveTo(event->position().toPoint());
+            m_selectionState.endMove();
+            m_isMoving = false;
+            updatePaintBarPosition();
+            updateInteractionCursor();
             viewport()->update();
             return;
         }
@@ -407,7 +453,7 @@ void CaptureOverlay::keyPressEvent(QKeyEvent *event)
             return;
         }
         if (event->key() == Qt::Key_Escape && !paintScene()->selectedItems().isEmpty()) {
-            paintScene()->clearSelection();
+            paintScene()->stopItemEditing();
             return;
         }
     }
@@ -512,14 +558,17 @@ void CaptureOverlay::keyPressEvent(QKeyEvent *event)
             paintScene()->setTool(shortcutTool);
             m_paintBar->setCurrentTool(shortcutTool);
             m_paintBar->setCurrentColor(paintScene()->color());
+            updateInteractionCursor();
             return;
         }
 
         if (event->matches(QKeySequence::Undo)) {
+            paintScene()->stopItemEditing();
             paintScene()->undoStack()->undo();
             return;
         }
         if (event->matches(QKeySequence::Redo)) {
+            paintScene()->stopItemEditing();
             paintScene()->undoStack()->redo();
             return;
         }
@@ -712,6 +761,118 @@ SelectionEdges CaptureOverlay::selectionEdgesAt(const QPoint &position) const
         edges |= SelectionEdge::kBottom;
     }
     return edges;
+}
+
+SelectionEdges CaptureOverlay::selectionEdgesOutsideAt(const QPoint &position) const
+{
+    const QRect selection = m_selectionState.current();
+    if (!selection.isValid() || selection.contains(position)) {
+        return SelectionEdge::kNone;
+    }
+
+    SelectionEdges edges;
+    if (position.x() < selection.left()) {
+        edges |= SelectionEdge::kLeft;
+    }
+    if (position.x() > selection.right()) {
+        edges |= SelectionEdge::kRight;
+    }
+    if (position.y() < selection.top()) {
+        edges |= SelectionEdge::kTop;
+    }
+    if (position.y() > selection.bottom()) {
+        edges |= SelectionEdge::kBottom;
+    }
+    return edges;
+}
+
+void CaptureOverlay::updateInteractionCursor()
+{
+    if (m_phase == CapturePhase::kSelecting) {
+        viewport()->setCursor(Qt::CrossCursor);
+        return;
+    }
+    if (m_phase != CapturePhase::kAnnotating) {
+        viewport()->setCursor(Qt::ArrowCursor);
+        return;
+    }
+
+    const QRect selection = m_selectionState.current();
+    const PaintTool tool = paintScene()->tool();
+    if (selection.contains(m_pointerPosition)) {
+        switch (paintScene()->itemHandleAt(m_pointerPosition)) {
+        case PaintItemHandle::kTopLeft:
+        case PaintItemHandle::kBottomRight:
+            viewport()->setCursor(Qt::SizeFDiagCursor);
+            return;
+        case PaintItemHandle::kTopRight:
+        case PaintItemHandle::kBottomLeft:
+            viewport()->setCursor(Qt::SizeBDiagCursor);
+            return;
+        case PaintItemHandle::kLeft:
+        case PaintItemHandle::kRight:
+            viewport()->setCursor(Qt::SizeHorCursor);
+            return;
+        case PaintItemHandle::kTop:
+        case PaintItemHandle::kBottom:
+            viewport()->setCursor(Qt::SizeVerCursor);
+            return;
+        case PaintItemHandle::kMove:
+            viewport()->setCursor(Qt::SizeAllCursor);
+            return;
+        case PaintItemHandle::kNone:
+            break;
+        }
+    }
+    if (tool != PaintTool::kNone) {
+        if (!selection.isValid() || !selection.contains(m_pointerPosition)) {
+            viewport()->setCursor(Qt::ForbiddenCursor);
+        } else {
+            viewport()->setCursor(tool == PaintTool::kText ? Qt::IBeamCursor : Qt::CrossCursor);
+        }
+        return;
+    }
+    if (!selection.isValid()) {
+        viewport()->setCursor(Qt::ArrowCursor);
+        return;
+    }
+
+    if (selection.contains(m_pointerPosition)) {
+        const SelectionEdges edge = selectionEdgesAt(m_pointerPosition);
+        if (edge != SelectionEdge::kNone) {
+            const bool left = edge.testFlag(SelectionEdge::kLeft);
+            const bool right = edge.testFlag(SelectionEdge::kRight);
+            const bool top = edge.testFlag(SelectionEdge::kTop);
+            const bool bottom = edge.testFlag(SelectionEdge::kBottom);
+            if ((left || right) && (top || bottom)) {
+                viewport()->setCursor((left && top) || (right && bottom) ? Qt::SizeFDiagCursor
+                                                                        : Qt::SizeBDiagCursor);
+            } else if (left || right) {
+                viewport()->setCursor(Qt::SizeHorCursor);
+            } else {
+                viewport()->setCursor(Qt::SizeVerCursor);
+            }
+            return;
+        }
+        viewport()->setCursor(Qt::SizeAllCursor);
+        return;
+    }
+
+    const SelectionEdges outside_edges = selectionEdgesOutsideAt(m_pointerPosition);
+    const bool left = outside_edges.testFlag(SelectionEdge::kLeft);
+    const bool right = outside_edges.testFlag(SelectionEdge::kRight);
+    const bool top = outside_edges.testFlag(SelectionEdge::kTop);
+    const bool bottom = outside_edges.testFlag(SelectionEdge::kBottom);
+    if ((left || right) && (top || bottom)) {
+        viewport()->setCursor((left && top) || (right && bottom) ? Qt::SizeFDiagCursor
+                                                                : Qt::SizeBDiagCursor);
+    } else if (left || right) {
+        viewport()->setCursor(Qt::SizeHorCursor);
+    } else if (top || bottom) {
+        viewport()->setCursor(Qt::SizeVerCursor);
+    } else {
+        viewport()->setCursor(Qt::ArrowCursor);
+    }
 }
 
 void CaptureOverlay::applyStartMode()

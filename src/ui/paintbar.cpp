@@ -433,9 +433,13 @@ PaintBar::PaintBar(QWidget *parent)
     m_secondaryLayout->addWidget(m_colorGroup);
     m_secondaryLayout->addStretch();
 
-    setCurrentTool(PaintTool::kRectangle);
+    setCurrentTool(PaintTool::kNone);
     updateSizeButton();
     refreshSize();
+    setCursor(Qt::ArrowCursor);
+    for (QWidget *child : findChildren<QWidget *>()) {
+        child->setCursor(Qt::ArrowCursor);
+    }
 }
 
 PaintBar::~PaintBar() = default;
@@ -570,6 +574,7 @@ QWidget *PaintBar::addSecondarySeparator(const QString &objectName)
 
 void PaintBar::updateSecondaryControls()
 {
+    m_secondaryRow->setVisible(m_tool != PaintTool::kNone);
     const bool is_arrow = m_tool == PaintTool::kArrow;
     const bool is_marker = m_tool == PaintTool::kMarker;
     const bool is_effect = m_tool == PaintTool::kMosaic;

@@ -99,7 +99,7 @@ private:
     QToolButton  *m_textBackgroundButton{nullptr};
     QSpinBox     *m_markerOpacitySpin{nullptr};
     QColor        m_color{255, 82, 82};
-    PaintTool     m_tool{PaintTool::kRectangle};
+    PaintTool     m_tool{PaintTool::kNone};
     PaintEffectMode m_effectMode{PaintEffectMode::kMosaic};
     qreal         m_size{2.0};
     int           m_fontSize{24};

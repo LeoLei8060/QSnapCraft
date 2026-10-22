@@ -53,6 +53,8 @@ private:
     void           drawMagnifier(QPainter &painter);
     void           drawTips(QPainter &painter);
     SelectionEdges selectionEdgesAt(const QPoint &position) const;
+    SelectionEdges selectionEdgesOutsideAt(const QPoint &position) const;
+    void           updateInteractionCursor();
     void           applyStartMode();
     void           updatePaintBarPosition();
     void           emitOutputAction(CaptureOutputAction action, bool closeAfter);

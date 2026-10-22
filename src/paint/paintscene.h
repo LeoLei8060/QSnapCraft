@@ -7,6 +7,7 @@
 #include <QPointF>
 #include <QString>
 #include <QTimer>
+#include <QTransform>
 
 class QUndoStack;
 class PaintItem;
@@ -15,6 +16,7 @@ class QGraphicsSceneMouseEvent;
 class QVariant;
 
 enum class PaintTool {
+    kNone,
     kSelect,
     kRectangle,
     kEllipse,
@@ -31,6 +33,19 @@ enum class PaintTool {
 enum class ArrowStyle { kSolid, kSolidTail, kHollowTail };
 
 enum class PaintEffectMode { kMosaic, kBlur };
+
+enum class PaintItemHandle {
+    kNone,
+    kMove,
+    kTopLeft,
+    kTop,
+    kTopRight,
+    kRight,
+    kBottomRight,
+    kBottom,
+    kBottomLeft,
+    kLeft
+};
 
 class PaintScene : public QGraphicsScene
 {
@@ -83,6 +98,10 @@ public:
     void           pasteCopied();
     void           moveSelectedBy(const QPointF &delta);
     qreal          adjustPenWidth(int direction);
+    void           stopItemEditing();
+    bool           hasEditableItem() const;
+    QGraphicsItem *editableItem() const;
+    PaintItemHandle itemHandleAt(const QPointF &position) const;
 
 signals:
     void sigSelectionChanged();
@@ -96,13 +115,14 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
 
 private:
+    void           beginItemEditing(QGraphicsItem *item);
+    void           setItemEditingEnabled(QGraphicsItem *item, bool enabled);
     void           applyItemFlags(QGraphicsItem *item);
-    QGraphicsItem *resizeHandleItemAt(const QPointF &position) const;
     void           applySelectedProperty(int property, const QVariant &value);
     void           scheduleEffectTileUpdate();
     void           processEffectTileUpdates();
 
-    PaintTool                                m_tool{PaintTool::kRectangle};
+    PaintTool                                m_tool{PaintTool::kNone};
     QColor                                   m_color{255, 82, 82};
     qreal                                    m_penWidth{2.0};
     bool                                     m_filled{false};
@@ -118,6 +138,7 @@ private:
     bool                                     m_textBackground{false};
     QUndoStack                              *m_undoStack{nullptr};
     PaintItem                               *m_activeItem{nullptr};
+    QGraphicsItem                           *m_editableItem{nullptr};
     QPointF                                  m_textStart;
     int                                      m_nextNumber{1};
     int                                      m_activeNumber{1};
@@ -125,10 +146,17 @@ private:
     QVector<class PaintItem *>               m_clipboardItems;
     QVector<PaintTextItem *>                 m_clipboardTextItems;
     QVector<QPair<QGraphicsItem *, QPointF>> m_moveStarts;
+    QPointF                                  m_itemMoveStartPosition;
     QGraphicsItem                           *m_resizeItem{nullptr};
+    PaintItemHandle                          m_resizeHandle{PaintItemHandle::kNone};
     QPointF                                  m_resizeStartPosition;
-    qreal                                    m_resizeStartScale{1.0};
+    QTransform                               m_resizeStartTransform;
+    QPointF                                  m_resizeStartItemPosition;
+    QPointF                                  m_resizeAnchorLocal;
+    QPointF                                  m_resizeAnchorScene;
     qreal                                    m_resizeBaseWidth{1.0};
-    std::array<QColor, 11>                   m_toolColors;
+    qreal                                    m_resizeBaseHeight{1.0};
+    std::array<QColor, 12>                   m_toolColors;
+    std::array<qreal, 12>                    m_toolPenWidths;
     QTimer                                   m_effectTileTimer;
 };

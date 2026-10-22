@@ -15,6 +15,7 @@ class PaintBarTest : public QObject
     Q_OBJECT
 
 private slots:
+    void defaultsToNoSelectedTool();
     void omitsSelectTool();
     void keepsCommonPropertiesVisibleForRectangle();
     void ordersCommonProperties();
@@ -27,6 +28,22 @@ private slots:
     void wheelChangesSize();
     void rendersToolbarLayouts();
 };
+
+void PaintBarTest::defaultsToNoSelectedTool()
+{
+    PaintBar bar;
+    bar.show();
+    QCoreApplication::processEvents();
+
+    for (QToolButton *button : bar.findChildren<QToolButton *>()) {
+        if (button->property("paintTool").isValid()) {
+            QVERIFY(!button->isChecked());
+        }
+    }
+    auto *properties = bar.findChild<QWidget *>(QStringLiteral("row_PaintProperties"));
+    QVERIFY(properties);
+    QVERIFY(!properties->isVisibleTo(&bar));
+}
 
 void PaintBarTest::omitsSelectTool()
 {

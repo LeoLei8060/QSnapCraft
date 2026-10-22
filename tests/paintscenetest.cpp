@@ -17,6 +17,11 @@ class PaintSceneTest : public QObject
     Q_OBJECT
 
 private slots:
+    void defaultsToIdleTool();
+    void defaultsMosaicBrushToFourteenPixels();
+    void finishedItemBecomesEditableSelection();
+    void switchingToolFreezesEditedItem();
+    void drawingNextItemFreezesPreviousItem();
     void createsAndUndoesRectangle();
     void supportsReversedDrag();
     void deletesSelectedWithUndo();
@@ -26,6 +31,7 @@ private slots:
     void remembersColorPerTool();
     void undoesSelectedPropertyChange();
     void createsAndCopiesText();
+    void copiesResizedItemTransform();
     void blursEffectUsingCapturedBackground();
     void blursBrushAcrossEffectTiles();
     void mosaicModesHaveDifferentCoverage();
@@ -34,6 +40,65 @@ private slots:
     void keepsLargeBlurDragResponsive();
     void defersSelectedEffectPropertyRebuild();
 };
+
+void PaintSceneTest::defaultsToIdleTool()
+{
+    PaintScene scene;
+    QCOMPARE(scene.tool(), PaintTool::kNone);
+}
+
+void PaintSceneTest::defaultsMosaicBrushToFourteenPixels()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kMosaic);
+    QCOMPARE(scene.penWidth(), 14.0);
+}
+
+void PaintSceneTest::finishedItemBecomesEditableSelection()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kRectangle);
+    PaintItem *item = scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(80, 50));
+    scene.finishActiveItem();
+
+    QVERIFY(item->isSelected());
+    QVERIFY(item->flags().testFlag(QGraphicsItem::ItemIsMovable));
+    QVERIFY(item->flags().testFlag(QGraphicsItem::ItemIsSelectable));
+}
+
+void PaintSceneTest::switchingToolFreezesEditedItem()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kRectangle);
+    PaintItem *item = scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(80, 50));
+    scene.finishActiveItem();
+
+    scene.setTool(PaintTool::kPencil);
+    QVERIFY(!item->isSelected());
+    QVERIFY(!item->flags().testFlag(QGraphicsItem::ItemIsMovable));
+    QVERIFY(!item->flags().testFlag(QGraphicsItem::ItemIsSelectable));
+}
+
+void PaintSceneTest::drawingNextItemFreezesPreviousItem()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kRectangle);
+    PaintItem *first = scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(80, 50));
+    scene.finishActiveItem();
+
+    PaintItem *second = scene.createItemAt(QPointF(100, 100));
+    QVERIFY(!first->isSelected());
+    QVERIFY(!first->flags().testFlag(QGraphicsItem::ItemIsMovable));
+    scene.updateActiveItem(QPointF(180, 150));
+    scene.finishActiveItem();
+
+    QVERIFY(second->isSelected());
+    QVERIFY(second->flags().testFlag(QGraphicsItem::ItemIsMovable));
+    QVERIFY(!first->isSelected());
+}
 
 void PaintSceneTest::createsAndUndoesRectangle()
 {
@@ -71,8 +136,6 @@ void PaintSceneTest::deletesSelectedWithUndo()
     scene.updateActiveItem(QPointF(80, 50));
     scene.finishActiveItem();
 
-    scene.setTool(PaintTool::kSelect);
-    item->setSelected(true);
     scene.deleteSelected();
     QCOMPARE(scene.visibleItemCount(), 0);
 
@@ -189,8 +252,6 @@ void PaintSceneTest::undoesSelectedPropertyChange()
 
     const QColor original = item->color();
     const QColor changed(30, 120, 220);
-    scene.setTool(PaintTool::kSelect);
-    item->setSelected(true);
     scene.setColor(changed);
     QCOMPARE(item->color(), changed);
 
@@ -216,11 +277,34 @@ void PaintSceneTest::createsAndCopiesText()
     QVERIFY(text->isOutlined());
     QVERIFY(text->hasBackground());
 
-    scene.setTool(PaintTool::kSelect);
-    text->setSelected(true);
     scene.copySelected();
     scene.pasteCopied();
     QCOMPARE(scene.visibleItemCount(), 2);
+}
+
+void PaintSceneTest::copiesResizedItemTransform()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kRectangle);
+    PaintItem *item = scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(110, 70));
+    scene.finishActiveItem();
+
+    const QTransform transform = QTransform::fromScale(1.75, 0.6);
+    item->setTransform(transform);
+    scene.copySelected();
+    scene.pasteCopied();
+
+    PaintItem *copy = nullptr;
+    for (QGraphicsItem *scene_item : scene.items()) {
+        auto *candidate = dynamic_cast<PaintItem *>(scene_item);
+        if (candidate != nullptr && candidate != item) {
+            copy = candidate;
+            break;
+        }
+    }
+    QVERIFY(copy);
+    QCOMPARE(copy->transform(), transform);
 }
 
 void PaintSceneTest::blursEffectUsingCapturedBackground()
@@ -333,7 +417,7 @@ void PaintSceneTest::mosaicModesHaveDifferentCoverage()
     QVERIFY(area.pixelColor(30, 25).alpha() > 0);
     QVERIFY(area.pixelColor(150, 150).alpha() > 0);
     QVERIFY(area.pixelColor(250, 250).alpha() > 0);
-    QCOMPARE(brush.pixelColor(30, 25).alpha(), 0);
+    QCOMPARE(brush.pixelColor(30, 50).alpha(), 0);
     QVERIFY(brush.pixelColor(150, 20).alpha() > 0);
 }
 
@@ -426,8 +510,6 @@ void PaintSceneTest::defersSelectedEffectPropertyRebuild()
     scene.updateActiveItem(QPointF(1020, 1020));
     scene.finishActiveItem();
 
-    scene.setTool(PaintTool::kSelect);
-    item->setSelected(true);
     QElapsedTimer timer;
     timer.start();
     scene.setEffectLevel(24);

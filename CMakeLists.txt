@@ -119,6 +119,27 @@ target_link_libraries(QSnapCraft PRIVATE QSnapCraftCore)
 
 include(CTest)
 
+set(QSNAPCRAFT_TEST_SOURCES
+    tests/applicationactiontest.cpp
+    tests/capturebargeometrytest.cpp
+    tests/capturebartest.cpp
+    tests/captureoverlaytest.cpp
+    tests/capturesessiontest.cpp
+    tests/colorpickertest.cpp
+    tests/desktopcapturetest.cpp
+    tests/elementdetectortest.cpp
+    tests/foregroundwindowtest.cpp
+    tests/paintbartest.cpp
+    tests/paintscenetest.cpp
+    tests/preferencessettingstest.cpp
+    tests/rulermeasurementtest.cpp
+    tests/screenrulerwindowtest.cpp
+    tests/selectionstatetest.cpp
+    tests/settingswindowtest.cpp
+    tests/snipsettingstest.cpp
+    tests/systemtraytest.cpp
+)
+
 set_source_files_properties(src/main.cpp PROPERTIES
     OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/app/singleapplication.h"
 )
@@ -171,6 +192,20 @@ set_property(SOURCE src/ui/paintbar.cpp APPEND PROPERTY OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paint/paintscene.h;"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/paintbar.h"
 )
+
+set(QSNAPCRAFT_HEADERS ${QSNAPCRAFT_SOURCES})
+list(FILTER QSNAPCRAFT_HEADERS INCLUDE REGEX "\\.h$")
+set(QSNAPCRAFT_HEADER_DEPENDENCIES)
+foreach(header IN LISTS QSNAPCRAFT_HEADERS)
+    list(APPEND QSNAPCRAFT_HEADER_DEPENDENCIES
+        "${CMAKE_CURRENT_SOURCE_DIR}/${header}"
+    )
+endforeach()
+foreach(test_source IN LISTS QSNAPCRAFT_TEST_SOURCES)
+    set_property(SOURCE ${test_source} APPEND PROPERTY OBJECT_DEPENDS
+        "${QSNAPCRAFT_HEADER_DEPENDENCIES}"
+    )
+endforeach()
 
 if(BUILD_TESTING)
     add_executable(ApplicationActionTest

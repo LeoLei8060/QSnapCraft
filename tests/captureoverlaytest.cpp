@@ -16,6 +16,7 @@
 #include <QMouseEvent>
 #include <QSlider>
 #include <QToolButton>
+#include <QUndoStack>
 #include <QWheelEvent>
 
 #ifdef Q_OS_WIN
@@ -85,7 +86,17 @@ class CaptureOverlayTest : public QObject
     Q_OBJECT
 
 private slots:
-    void selectsExistingAnnotationWithoutSelectTool();
+    void entersAnnotationWithoutSelectedTool();
+    void toolbarUsesArrowCursor();
+    void annotationHandlesUseDirectionalCursors();
+    void edgeHandlesResizeSingleAxis();
+    void itemResizeRequestsRepaintDuringDrag();
+    void cursorReflectsAnnotationContext();
+    void blocksAnnotationInputOutsideSelection();
+    void idleModeMovesSelectionWithoutCreatingAnnotation();
+    void editsNewestAnnotationBeforeAnotherOperation();
+    void doesNotReselectFrozenAnnotation();
+    void rightClickLeavesAnnotationEditingWithoutCancellingCapture();
     void copiesDisplayedRgbColorInSelectionPhase();
     void shiftSwitchesCopiedColorToHex();
     void selectionWheelDoesNotReachScene();
@@ -103,7 +114,353 @@ private slots:
     void annotationButtonsUseIconsWithoutText();
 };
 
-void CaptureOverlayTest::selectsExistingAnnotationWithoutSelectTool()
+void CaptureOverlayTest::entersAnnotationWithoutSelectedTool()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 300, 250));
+    overlay.enterAnnotating();
+
+    QCOMPARE(overlay.paintScene()->tool(), PaintTool::kNone);
+    for (QToolButton *button : overlay.findChildren<QToolButton *>()) {
+        if (button->property("paintTool").isValid()) {
+            QVERIFY(!button->isChecked());
+        }
+    }
+    overlay.hide();
+}
+
+void CaptureOverlayTest::toolbarUsesArrowCursor()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 400, 320));
+    overlay.enterAnnotating();
+
+    auto *paint_bar = overlay.findChild<PaintBar *>();
+    QVERIFY(paint_bar);
+    QCOMPARE(paint_bar->cursor().shape(), Qt::ArrowCursor);
+    for (QWidget *child : paint_bar->findChildren<QWidget *>()) {
+        QCOMPARE(child->cursor().shape(), Qt::ArrowCursor);
+    }
+    overlay.hide();
+}
+
+void CaptureOverlayTest::annotationHandlesUseDirectionalCursors()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(QColor(30, 60, 90));
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+    options.showAnchors = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 400, 320));
+    overlay.enterAnnotating();
+    PaintScene *scene = overlay.paintScene();
+    scene->setTool(PaintTool::kRectangle);
+    PaintItem *item = scene->createItemAt(QPointF(150, 150));
+    scene->updateActiveItem(QPointF(350, 270));
+    scene->finishActiveItem();
+    QVERIFY(item->isSelected());
+
+    const QRectF bounds = item->mapRectToScene(item->boundingRect());
+    const auto move_to = [&overlay](const QPointF &position) {
+        const QPoint point = position.toPoint();
+        QMouseEvent event(QEvent::MouseMove,
+                          QPointF(point),
+                          QPointF(overlay.viewport()->mapToGlobal(point)),
+                          Qt::NoButton,
+                          Qt::NoButton,
+                          Qt::NoModifier);
+        QCoreApplication::sendEvent(overlay.viewport(), &event);
+    };
+
+    move_to(bounds.topLeft());
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeFDiagCursor);
+    move_to(bounds.topRight());
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeBDiagCursor);
+    move_to(bounds.center() + QPointF(bounds.width() / 2.0, 0));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeHorCursor);
+    move_to(bounds.center() + QPointF(0, -bounds.height() / 2.0));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeVerCursor);
+    move_to(QPointF(bounds.left() + bounds.width() / 4.0, bounds.top()));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeAllCursor);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::edgeHandlesResizeSingleAxis()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(QColor(30, 60, 90));
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+    options.showAnchors = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 400, 320));
+    overlay.enterAnnotating();
+    PaintScene *scene = overlay.paintScene();
+    scene->setTool(PaintTool::kRectangle);
+    PaintItem *item = scene->createItemAt(QPointF(150, 150));
+    scene->updateActiveItem(QPointF(350, 270));
+    scene->finishActiveItem();
+    QVERIFY(item->isSelected());
+
+    const QRectF original = item->mapRectToScene(item->boundingRect());
+    const QPoint right_handle(qRound(original.right()), qRound(original.center().y()));
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, right_handle);
+    QMouseEvent move_event(QEvent::MouseMove,
+                           QPointF(right_handle + QPoint(60, 0)),
+                           QPointF(overlay.viewport()->mapToGlobal(right_handle + QPoint(60, 0))),
+                           Qt::NoButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &move_event);
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, right_handle + QPoint(60, 0));
+
+    const QRectF resized = item->mapRectToScene(item->boundingRect());
+    QVERIFY(resized.width() > original.width() + 30);
+    QVERIFY(qAbs(resized.height() - original.height()) < 1);
+    QVERIFY(qAbs(resized.left() - original.left()) < 1);
+
+    scene->undoStack()->undo();
+    const QRectF restored_after_horizontal = item->mapRectToScene(item->boundingRect());
+    QVERIFY(qAbs(restored_after_horizontal.width() - original.width()) < 1);
+    QVERIFY(qAbs(restored_after_horizontal.height() - original.height()) < 1);
+
+    const QPoint bottom_handle(qRound(restored_after_horizontal.center().x()),
+                               qRound(restored_after_horizontal.bottom()));
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, bottom_handle);
+    QMouseEvent vertical_move(QEvent::MouseMove,
+                              QPointF(bottom_handle + QPoint(0, 45)),
+                              QPointF(overlay.viewport()->mapToGlobal(bottom_handle + QPoint(0, 45))),
+                              Qt::NoButton,
+                              Qt::LeftButton,
+                              Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &vertical_move);
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, bottom_handle + QPoint(0, 45));
+
+    const QRectF resized_vertically = item->mapRectToScene(item->boundingRect());
+    QVERIFY(resized_vertically.height() > original.height() + 20);
+    QVERIFY(qAbs(resized_vertically.width() - original.width()) < 1);
+    QVERIFY(qAbs(resized_vertically.top() - original.top()) < 1);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::itemResizeRequestsRepaintDuringDrag()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(QColor(30, 60, 90));
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+    options.showAnchors = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 400, 320));
+    overlay.enterAnnotating();
+    PaintScene *scene = overlay.paintScene();
+    scene->setTool(PaintTool::kRectangle);
+    PaintItem *item = scene->createItemAt(QPointF(150, 150));
+    scene->updateActiveItem(QPointF(350, 270));
+    scene->finishActiveItem();
+
+    const QRectF bounds = item->mapRectToScene(item->boundingRect());
+    const QPoint right_handle(qRound(bounds.right()), qRound(bounds.center().y()));
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, right_handle);
+
+    QSignalSpy repaint_spy(scene, &PaintScene::sigRepaintRequested);
+    QMouseEvent move_event(QEvent::MouseMove,
+                           QPointF(right_handle + QPoint(40, 0)),
+                           QPointF(overlay.viewport()->mapToGlobal(right_handle + QPoint(40, 0))),
+                           Qt::NoButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &move_event);
+
+    QVERIFY(repaint_spy.count() >= 1);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::cursorReflectsAnnotationContext()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 300, 250));
+    overlay.enterAnnotating();
+
+    const auto move_to = [&overlay](const QPoint &position) {
+        QMouseEvent event(QEvent::MouseMove,
+                          QPointF(position),
+                          QPointF(overlay.viewport()->mapToGlobal(position)),
+                          Qt::NoButton,
+                          Qt::NoButton,
+                          Qt::NoModifier);
+        QCoreApplication::sendEvent(overlay.viewport(), &event);
+    };
+
+    move_to(QPoint(200, 200));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeAllCursor);
+    move_to(QPoint(50, 200));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeHorCursor);
+    move_to(QPoint(200, 50));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::SizeVerCursor);
+
+    QToolButton *rectangle_button = nullptr;
+    for (QToolButton *button : overlay.findChildren<QToolButton *>()) {
+        if (button->property("paintTool").toInt() == static_cast<int>(PaintTool::kRectangle)) {
+            rectangle_button = button;
+            break;
+        }
+    }
+    QVERIFY(rectangle_button);
+    QTest::mouseClick(rectangle_button, Qt::LeftButton);
+    move_to(QPoint(200, 200));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::CrossCursor);
+    move_to(QPoint(50, 200));
+    QCOMPARE(overlay.viewport()->cursor().shape(), Qt::ForbiddenCursor);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::blocksAnnotationInputOutsideSelection()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    const QRect selection(100, 100, 300, 250);
+    overlay.setSelection(selection);
+    overlay.enterAnnotating();
+
+    QToolButton *rectangle_button = nullptr;
+    for (QToolButton *button : overlay.findChildren<QToolButton *>()) {
+        if (button->property("paintTool").toInt() == static_cast<int>(PaintTool::kRectangle)) {
+            rectangle_button = button;
+            break;
+        }
+    }
+    QVERIFY(rectangle_button);
+    QTest::mouseClick(rectangle_button, Qt::LeftButton);
+
+    QSignalSpy cancel_spy(&overlay, &CaptureOverlay::sigCancelRequested);
+    QTest::mouseClick(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(50, 200));
+    QTest::mouseClick(overlay.viewport(), Qt::RightButton, Qt::NoModifier, QPoint(50, 200));
+
+    QCOMPARE(overlay.phase(), CapturePhase::kAnnotating);
+    QCOMPARE(overlay.currentSelection(), selection);
+    QCOMPARE(overlay.paintScene()->visibleItemCount(), 0);
+    QCOMPARE(cancel_spy.count(), 0);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::idleModeMovesSelectionWithoutCreatingAnnotation()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 300, 250));
+    overlay.enterAnnotating();
+
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(200, 200));
+    QMouseEvent move_event(QEvent::MouseMove,
+                           QPointF(220, 230),
+                           QPointF(overlay.viewport()->mapToGlobal(QPoint(220, 230))),
+                           Qt::NoButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &move_event);
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(220, 230));
+
+    QCOMPARE(overlay.currentSelection(), QRect(120, 130, 300, 250));
+    QCOMPARE(overlay.paintScene()->visibleItemCount(), 0);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::editsNewestAnnotationBeforeAnotherOperation()
 {
     CaptureFrame frame;
     frame.logicalBounds = QRect(0, 0, 800, 600);
@@ -124,16 +481,129 @@ void CaptureOverlayTest::selectsExistingAnnotationWithoutSelectTool()
     overlay.setSelection(QRect(100, 100, 400, 320));
     overlay.enterAnnotating();
 
+    QToolButton *rectangle_button = overlay.findChild<QToolButton *>(QStringLiteral("btn_ToolRectangle"));
+    QVERIFY(rectangle_button);
+    QTest::mouseClick(rectangle_button, Qt::LeftButton);
+
     QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(150, 150));
     QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(300, 260));
     PaintScene *scene = overlay.paintScene();
     QCOMPARE(scene->visibleItemCount(), 1);
-    scene->clearSelection();
+    auto *item = dynamic_cast<PaintItem *>(scene->items().constFirst());
+    QVERIFY(item);
+    QVERIFY(item->isSelected());
 
-    QTest::mouseClick(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(200, 200));
+    const QRectF original_bounds = item->mapRectToScene(item->boundingRect());
+    const QPointF original_center = original_bounds.center();
+    const QPoint move_start(qRound(original_bounds.left() + original_bounds.width() / 4.0),
+                            qRound(original_bounds.top()));
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, move_start);
+    QMouseEvent move_event(QEvent::MouseMove,
+                           QPointF(move_start + QPoint(40, 30)),
+                           QPointF(overlay.viewport()->mapToGlobal(move_start + QPoint(40, 30))),
+                           Qt::NoButton,
+                           Qt::LeftButton,
+                           Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &move_event);
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, move_start + QPoint(40, 30));
+    QVERIFY(item->mapRectToScene(item->boundingRect()).center() != original_center);
 
+    const QRectF before_resize = item->mapRectToScene(item->boundingRect());
+    const QPoint handle = before_resize.bottomRight().toPoint();
+    const qreal original_width = before_resize.width();
+    const qreal original_height = before_resize.height();
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, handle);
+    QMouseEvent resize_event(QEvent::MouseMove,
+                             QPointF(handle + QPoint(60, 40)),
+                             QPointF(overlay.viewport()->mapToGlobal(handle + QPoint(60, 40))),
+                             Qt::NoButton,
+                             Qt::LeftButton,
+                             Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &resize_event);
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, handle + QPoint(60, 40));
+    const QRectF after_resize = item->mapRectToScene(item->boundingRect());
+    QVERIFY(after_resize.width() > original_width);
+    QVERIFY(after_resize.height() > original_height);
+
+    QTest::mouseClick(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(130, 130));
     QCOMPARE(scene->visibleItemCount(), 1);
+    QCOMPARE(scene->selectedItems().size(), 0);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::doesNotReselectFrozenAnnotation()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(QColor(30, 60, 90));
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+    options.showAnchors = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 400, 320));
+    overlay.enterAnnotating();
+
+    QToolButton *rectangle_button = overlay.findChild<QToolButton *>(QStringLiteral("btn_ToolRectangle"));
+    QVERIFY(rectangle_button);
+    QTest::mouseClick(rectangle_button, Qt::LeftButton);
+
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(150, 150));
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(300, 260));
+    PaintScene *scene = overlay.paintScene();
+    QCOMPARE(scene->visibleItemCount(), 1);
+
+    QTest::mouseClick(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(430, 390));
+    QCOMPARE(scene->selectedItems().size(), 0);
+    QTest::mouseClick(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(200, 180));
+    QCOMPARE(scene->selectedItems().size(), 0);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::rightClickLeavesAnnotationEditingWithoutCancellingCapture()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(QColor(30, 60, 90));
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+    options.showAnchors = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(100, 100, 400, 320));
+    overlay.enterAnnotating();
+
+    QToolButton *rectangle_button = overlay.findChild<QToolButton *>(QStringLiteral("btn_ToolRectangle"));
+    QVERIFY(rectangle_button);
+    QTest::mouseClick(rectangle_button, Qt::LeftButton);
+
+    PaintScene *scene = overlay.paintScene();
+    QTest::mousePress(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(150, 150));
+    QTest::mouseRelease(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(300, 260));
     QCOMPARE(scene->selectedItems().size(), 1);
+
+    QSignalSpy cancel_spy(&overlay, &CaptureOverlay::sigCancelRequested);
+    QTest::mouseClick(overlay.viewport(), Qt::RightButton, Qt::NoModifier, QPoint(430, 390));
+
+    QCOMPARE(scene->selectedItems().size(), 0);
+    QCOMPARE(cancel_spy.count(), 0);
+    QCOMPARE(overlay.phase(), CapturePhase::kAnnotating);
     overlay.hide();
 }
 
@@ -286,6 +756,8 @@ void CaptureOverlayTest::wheelUpdatesMosaicBrushWidthInToolbar()
     QVERIFY(mosaic_button);
     QVERIFY(level);
     QTest::mouseClick(mosaic_button, Qt::LeftButton);
+    QCOMPARE(overlay.paintScene()->penWidth(), 14.0);
+    QCOMPARE(level->value(), 14);
 
     level->setValue(64);
     QCOMPARE(overlay.paintScene()->penWidth(), 64.0);
