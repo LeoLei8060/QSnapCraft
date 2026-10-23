@@ -24,9 +24,28 @@ PinSettings::PinSettings(QWidget *parent)
     m_shadow->setObjectName(QStringLiteral("check_PinShadow"));
     m_stayOnTop = new QCheckBox(tr("贴图始终置顶"), window_group);
     m_stayOnTop->setObjectName(QStringLiteral("check_PinStayOnTop"));
+    m_smoothScaling = new QCheckBox(tr("使用平滑缩放"), window_group);
+    m_smoothScaling->setObjectName(QStringLiteral("check_PinSmoothScaling"));
+    m_zoomAtCursor = new QCheckBox(tr("以鼠标位置为中心缩放"), window_group);
+    m_zoomAtCursor->setObjectName(QStringLiteral("check_PinZoomAtCursor"));
     window_layout->addWidget(m_shadow);
     window_layout->addWidget(m_stayOnTop);
+    window_layout->addWidget(m_smoothScaling);
+    window_layout->addWidget(m_zoomAtCursor);
     layout->addWidget(window_group);
+
+    auto *behaviorGroup = new QGroupBox(tr("贴图行为"), this);
+    auto *behaviorForm = new QFormLayout(behaviorGroup);
+    m_snapDistance = new QSpinBox(behaviorGroup);
+    m_snapDistance->setObjectName(QStringLiteral("spin_PinSnapDistance"));
+    m_snapDistance->setRange(0, 32);
+    m_snapDistance->setSuffix(QStringLiteral(" px"));
+    m_recoveryLimit = new QSpinBox(behaviorGroup);
+    m_recoveryLimit->setObjectName(QStringLiteral("spin_PinRecoveryLimit"));
+    m_recoveryLimit->setRange(0, 50);
+    behaviorForm->addRow(tr("磁吸距离："), m_snapDistance);
+    behaviorForm->addRow(tr("可恢复贴图数量："), m_recoveryLimit);
+    layout->addWidget(behaviorGroup);
 
     auto *text_group = new QGroupBox(tr("剪贴板文字转贴图"), this);
     auto *form = new QFormLayout(text_group);
@@ -67,6 +86,10 @@ PinSettings::PinSettings(QWidget *parent)
 
     connect(m_shadow, &QCheckBox::toggled, this, &PinSettings::sigChanged);
     connect(m_stayOnTop, &QCheckBox::toggled, this, &PinSettings::sigChanged);
+    connect(m_smoothScaling, &QCheckBox::toggled, this, &PinSettings::sigChanged);
+    connect(m_zoomAtCursor, &QCheckBox::toggled, this, &PinSettings::sigChanged);
+    connect(m_recoveryLimit, &QSpinBox::valueChanged, this, &PinSettings::sigChanged);
+    connect(m_snapDistance, &QSpinBox::valueChanged, this, &PinSettings::sigChanged);
     connect(m_fontFamily, &QFontComboBox::currentFontChanged, this, &PinSettings::sigChanged);
     connect(m_fontSize, &QSpinBox::valueChanged, this, &PinSettings::sigChanged);
     connect(m_maxWidth, &QSpinBox::valueChanged, this, &PinSettings::sigChanged);
@@ -81,6 +104,10 @@ void PinSettings::setPreferences(const ApplicationPreferences &preferences)
     const auto          &settings = preferences.pin;
     const QSignalBlocker shadow_blocker(m_shadow);
     const QSignalBlocker top_blocker(m_stayOnTop);
+    const QSignalBlocker smooth_blocker(m_smoothScaling);
+    const QSignalBlocker cursor_blocker(m_zoomAtCursor);
+    const QSignalBlocker recovery_blocker(m_recoveryLimit);
+    const QSignalBlocker snap_blocker(m_snapDistance);
     const QSignalBlocker font_blocker(m_fontFamily);
     const QSignalBlocker size_blocker(m_fontSize);
     const QSignalBlocker width_blocker(m_maxWidth);
@@ -88,6 +115,10 @@ void PinSettings::setPreferences(const ApplicationPreferences &preferences)
 
     m_shadow->setChecked(settings.showShadow);
     m_stayOnTop->setChecked(settings.stayOnTop);
+    m_smoothScaling->setChecked(settings.smoothScaling);
+    m_zoomAtCursor->setChecked(settings.zoomAtCursor);
+    m_recoveryLimit->setValue(settings.recoveryLimit);
+    m_snapDistance->setValue(settings.snapDistancePx);
     m_fontFamily->setCurrentFont(QFont(settings.textToImage.fontFamily));
     m_fontSize->setValue(settings.textToImage.fontSize);
     m_maxWidth->setValue(settings.textToImage.maxWidth);
@@ -101,6 +132,10 @@ void PinSettings::writePreferences(ApplicationPreferences &preferences) const
 {
     preferences.pin.showShadow = m_shadow->isChecked();
     preferences.pin.stayOnTop = m_stayOnTop->isChecked();
+    preferences.pin.smoothScaling = m_smoothScaling->isChecked();
+    preferences.pin.zoomAtCursor = m_zoomAtCursor->isChecked();
+    preferences.pin.recoveryLimit = m_recoveryLimit->value();
+    preferences.pin.snapDistancePx = m_snapDistance->value();
     preferences.pin.textToImage.fontFamily = m_fontFamily->currentFont().family();
     preferences.pin.textToImage.fontSize = m_fontSize->value();
     preferences.pin.textToImage.maxWidth = m_maxWidth->value();

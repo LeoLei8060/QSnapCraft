@@ -1,5 +1,7 @@
 #include "textimagerenderer.h"
 
+#include "pinboard/pinimagelimits.h"
+
 #include <QAbstractTextDocumentLayout>
 #include <QFont>
 #include <QPainter>
@@ -31,6 +33,9 @@ QImage renderTextToImage(const QString &text, TextImageFormat format, const Text
     const QSizeF document_size = document.documentLayout()->documentSize();
     const int    width = qMin(max_width, qMax(1, qCeil(document_size.width())) + padding * 2);
     const int    height = qMax(1, qCeil(document_size.height())) + padding * 2;
+    if (!canCreatePinImage(QSize(width, height))) {
+        return {};
+    }
 
     QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
     image.fill(options.backgroundColor);

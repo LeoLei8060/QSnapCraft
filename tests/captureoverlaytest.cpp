@@ -59,6 +59,41 @@ bool windowContainsColor(WId window_id, const QRect &area, const QColor &expecte
     return false;
 }
 
+int darkPixelCount(const QImage &image, const QRect &area)
+{
+    const QRect bounded = area.intersected(image.rect());
+    int         count = 0;
+    for (int y = bounded.top(); y <= bounded.bottom(); ++y) {
+        for (int x = bounded.left(); x <= bounded.right(); ++x) {
+            if (image.pixelColor(x, y).lightness() < 70) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+QRect darkPixelBounds(const QImage &image)
+{
+    QRect bounds;
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            if (image.pixelColor(x, y).lightness() >= 70) {
+                continue;
+            }
+            if (bounds.isNull()) {
+                bounds = QRect(x, y, 1, 1);
+            } else {
+                bounds.setLeft(qMin(bounds.left(), x));
+                bounds.setTop(qMin(bounds.top(), y));
+                bounds.setRight(qMax(bounds.right(), x));
+                bounds.setBottom(qMax(bounds.bottom(), y));
+            }
+        }
+    }
+    return bounds;
+}
+
 #ifdef Q_OS_WIN
 void nativeClick(const QPoint &global_position)
 {
@@ -107,6 +142,16 @@ private slots:
     void pKeyTogglesCapturedCursor();
     void controlORequestsOcrForSelection();
     void startsPointCaptureWithEmptySelection();
+    void showsShortcutHintsBeforeSelection();
+    void movesShortcutHintsAwayFromPointer();
+    void hidesShortcutHintsAfterSelection();
+    void respectsDisabledShortcutHints();
+    void fSwitchesSelectionToFullDesktop();
+    void fUsesAutomaticCaptureHighlightColor();
+    void secondFPressReturnsToAutomaticCapture();
+    void leftClickConfirmsFullDesktopSelection();
+    void enterConfirmsFullDesktopSelection();
+    void fDoesNotResizeAnnotatingSelection();
     void lastAreaModeRestoresRecordedSelection();
     void fullDesktopModeSelectsCaptureBounds();
     void centeredSizeModeUsesRequestedSize();
@@ -955,6 +1000,319 @@ void CaptureOverlayTest::startsPointCaptureWithEmptySelection()
     overlay.begin(frame, options, request);
 
     QVERIFY(!overlay.currentSelection().isValid());
+    overlay.hide();
+}
+
+void CaptureOverlayTest::showsShortcutHintsBeforeSelection()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = true;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    const QPoint pointerPosition(700, 100);
+    QMouseEvent  pointerMove(QEvent::MouseMove,
+                            pointerPosition,
+                            overlay.viewport()->mapToGlobal(pointerPosition),
+                            Qt::NoButton,
+                            Qt::NoButton,
+                            Qt::NoModifier);
+    QCoreApplication::sendEvent(overlay.viewport(), &pointerMove);
+    QTest::qWait(20);
+
+    const QImage viewportImage = overlay.viewport()->grab().toImage();
+    const QRect  hintArea(0, viewportImage.height() / 2, qMin(600, viewportImage.width()), viewportImage.height() / 2);
+    QVERIFY(darkPixelCount(viewportImage, hintArea) > 8000);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::movesShortcutHintsAwayFromPointer()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = true;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+
+    const auto movePointer = [&overlay](const QPoint &position) {
+        QMouseEvent move(QEvent::MouseMove,
+                         position,
+                         overlay.viewport()->mapToGlobal(position),
+                         Qt::NoButton,
+                         Qt::NoButton,
+                         Qt::NoModifier);
+        QCoreApplication::sendEvent(overlay.viewport(), &move);
+        QTest::qWait(20);
+    };
+
+    const QPoint center(400, 300);
+    movePointer(center);
+    QRect hintBounds = darkPixelBounds(overlay.viewport()->grab().toImage());
+    QVERIFY(hintBounds.isValid());
+    QVERIFY(hintBounds.top() > 300);
+
+    movePointer(hintBounds.center());
+    hintBounds = darkPixelBounds(overlay.viewport()->grab().toImage());
+    QVERIFY(hintBounds.isValid());
+    QVERIFY(hintBounds.top() < 300);
+
+    movePointer(center);
+    hintBounds = darkPixelBounds(overlay.viewport()->grab().toImage());
+    QVERIFY(hintBounds.isValid());
+    QVERIFY(hintBounds.top() < 300);
+
+    movePointer(hintBounds.center());
+    hintBounds = darkPixelBounds(overlay.viewport()->grab().toImage());
+    QVERIFY(hintBounds.isValid());
+    QVERIFY(hintBounds.top() > 300);
+
+    movePointer(center);
+    hintBounds = darkPixelBounds(overlay.viewport()->grab().toImage());
+    QVERIFY(hintBounds.isValid());
+    QVERIFY(hintBounds.top() > 300);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::hidesShortcutHintsAfterSelection()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = true;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(200, 160, 320, 220));
+    QTest::qWait(20);
+
+    const QImage viewportImage = overlay.viewport()->grab().toImage();
+    const QRect  hintArea(0, viewportImage.height() / 2, qMin(600, viewportImage.width()), viewportImage.height() / 2);
+    QCOMPARE(darkPixelCount(viewportImage, hintArea), 0);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::respectsDisabledShortcutHints()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    QTest::qWait(20);
+
+    const QImage viewportImage = overlay.viewport()->grab().toImage();
+    const QRect  hintArea(0, viewportImage.height() / 2, qMin(600, viewportImage.width()), viewportImage.height() / 2);
+    QCOMPARE(darkPixelCount(viewportImage, hintArea), 0);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::fSwitchesSelectionToFullDesktop()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.setSelection(QRect(200, 160, 320, 220));
+    overlay.show();
+    overlay.setFocus();
+    QTest::keyClick(&overlay, Qt::Key_F);
+
+    QCOMPARE(overlay.currentSelection(), QRect(0, 0, 800, 600));
+    QCOMPARE(overlay.phase(), CapturePhase::kSelecting);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::fUsesAutomaticCaptureHighlightColor()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.show();
+    overlay.setFocus();
+    QTest::keyClick(&overlay, Qt::Key_F);
+    QTest::qWait(20);
+
+    const QImage viewportImage = overlay.viewport()->grab().toImage();
+    bool         foundBlueBorder = false;
+    for (int x = 0; x < 4 && !foundBlueBorder; ++x) {
+        const QColor color = viewportImage.pixelColor(x, viewportImage.height() / 2);
+        foundBlueBorder = color.blue() > 180 && color.red() < 60;
+    }
+    QVERIFY(foundBlueBorder);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::secondFPressReturnsToAutomaticCapture()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.show();
+    overlay.setFocus();
+    QTest::keyClick(&overlay, Qt::Key_F);
+    QCOMPARE(overlay.currentSelection(), QRect(0, 0, 800, 600));
+
+    QTest::keyClick(&overlay, Qt::Key_F);
+    QVERIFY(!overlay.currentSelection().isValid());
+    QCOMPARE(overlay.phase(), CapturePhase::kSelecting);
+    overlay.hide();
+}
+
+void CaptureOverlayTest::leftClickConfirmsFullDesktopSelection()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    connect(&overlay, &CaptureOverlay::sigSelectionConfirmed, &overlay, &CaptureOverlay::enterAnnotating);
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.show();
+    overlay.setFocus();
+    QTest::keyClick(&overlay, Qt::Key_F);
+    QTest::mouseClick(overlay.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(400, 300));
+
+    QCOMPARE(overlay.phase(), CapturePhase::kAnnotating);
+    QCOMPARE(overlay.currentSelection(), QRect(0, 0, 800, 600));
+    overlay.hide();
+}
+
+void CaptureOverlayTest::enterConfirmsFullDesktopSelection()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    connect(&overlay, &CaptureOverlay::sigSelectionConfirmed, &overlay, &CaptureOverlay::enterAnnotating);
+    overlay.begin(frame, options, CaptureRequest{});
+    overlay.show();
+    overlay.setFocus();
+    QTest::keyClick(&overlay, Qt::Key_F);
+    QTest::keyClick(&overlay, Qt::Key_Return);
+
+    QCOMPARE(overlay.phase(), CapturePhase::kAnnotating);
+    QCOMPARE(overlay.currentSelection(), QRect(0, 0, 800, 600));
+    overlay.hide();
+}
+
+void CaptureOverlayTest::fDoesNotResizeAnnotatingSelection()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 800, 600);
+    frame.logicalComposite = QImage(800, 600, QImage::Format_ARGB32_Premultiplied);
+    frame.logicalComposite.fill(Qt::white);
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, frame.logicalComposite, 1.0},
+    };
+
+    CaptureOptions options;
+    options.detectWindows = false;
+    options.showMagnifier = false;
+    options.showTips = false;
+
+    CaptureOverlay overlay;
+    overlay.begin(frame, options, CaptureRequest{});
+    const QRect selection(200, 160, 320, 220);
+    overlay.setSelection(selection);
+    overlay.enterAnnotating();
+    overlay.show();
+    overlay.setFocus();
+    QTest::keyClick(&overlay, Qt::Key_F);
+
+    QCOMPARE(overlay.currentSelection(), selection);
+    QCOMPARE(overlay.phase(), CapturePhase::kAnnotating);
     overlay.hide();
 }
 

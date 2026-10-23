@@ -81,12 +81,16 @@ private:
     QPoint                    m_pendingHoverPosition;
     QPoint                    m_anchor;
     QPoint                    m_pointerPosition;
+    QRect                     m_shortcutHintRect;
     SelectionEdges            m_activeEdges;
     bool                      m_isDragging{false};
     bool                      m_adopting{false};
     bool                      m_dragged{false};
     bool                      m_isResizing{false};
     bool                      m_isMoving{false};
+    bool                      m_confirmingSelection{false};
+    bool                      m_fullDesktopShortcutActive{false};
+    bool                      m_hintPanelAtTopLeft{false};
     bool                      m_detectionEnabled{true};
     bool                      m_maskVisible{true};
     bool                      m_magnifierVisible{true};

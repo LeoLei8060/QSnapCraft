@@ -19,6 +19,10 @@ struct PinSettingsData
 {
     bool               showShadow{true};
     bool               stayOnTop{true};
+    int                recoveryLimit{20};
+    int                snapDistancePx{8};
+    bool               smoothScaling{true};
+    bool               zoomAtCursor{true};
     TextToImageOptions textToImage;
 };
 

@@ -1,6 +1,8 @@
 #include "pinwindow.h"
 
 #include "output/outputservice.h"
+#include "pinboard/pinimagelimits.h"
+#include "pinboard/pinsnapresolver.h"
 #include "ui/glyphicon.h"
 
 #include <QAction>
@@ -9,19 +11,26 @@
 #include <QCloseEvent>
 #include <QContextMenuEvent>
 #include <QDebug>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGraphicsDropShadowEffect>
+#include <QImageReader>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QScreen>
 #include <QSignalBlocker>
+#include <QUrl>
 #include <QWheelEvent>
 
 #include <windows.h>
+
+#include <algorithm>
 
 PinWindow::PinWindow(QWidget *parent)
     : QWidget(parent)
@@ -31,6 +40,7 @@ PinWindow::PinWindow(QWidget *parent)
     setAttribute(Qt::WA_TranslucentBackground);
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
+    setAcceptDrops(true);
 
     m_imageLabel = new QLabel(this);
     m_imageLabel->setObjectName(QStringLiteral("pinImageContent"));
@@ -56,9 +66,9 @@ PinWindow::~PinWindow()
 void PinWindow::pinImage(const QPixmap &pixmap, const QRect &rect)
 {
     m_currentImage = pixmap;
-    m_imageLabel->setPixmap(m_currentImage);
-    setGeometry(rect.adjusted(-SHADOW_MARGIN, -SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN));
-    updateImageLabelGeometry();
+    m_displayedSize = {};
+    setContentGeometry(rect);
+    notifyContentGeometryChanged();
     show();
     raise();
 }
@@ -71,12 +81,7 @@ void PinWindow::setClickThrough(bool enabled)
 
     m_clickThrough = enabled;
     setAttribute(Qt::WA_TransparentForMouseEvents, enabled);
-
-    const HWND     window = reinterpret_cast<HWND>(winId());
-    const LONG_PTR current_style = GetWindowLongPtrW(window, GWL_EXSTYLE);
-    const LONG_PTR next_style = enabled ? current_style | WS_EX_TRANSPARENT | WS_EX_LAYERED
-                                        : current_style & ~WS_EX_TRANSPARENT;
-    SetWindowLongPtrW(window, GWL_EXSTYLE, next_style);
+    applyClickThroughStyle();
 }
 
 bool PinWindow::isClickThrough() const
@@ -112,6 +117,40 @@ void PinWindow::setStayOnTop(bool enabled)
         show();
         raise();
     }
+    if (m_clickThrough) {
+        setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        applyClickThroughStyle();
+    }
+}
+
+void PinWindow::setSnapDistancePx(int distancePx)
+{
+    m_snapDistancePx = qBound(0, distancePx, 32);
+}
+
+void PinWindow::setSnapTargets(const QVector<QRect> &targets)
+{
+    m_snapTargets = targets;
+}
+
+void PinWindow::setSmoothScaling(bool enabled)
+{
+    if (m_smoothScaling == enabled) {
+        return;
+    }
+    m_smoothScaling = enabled;
+    m_displayedSize = {};
+    refreshDisplayedPixmap();
+}
+
+void PinWindow::setZoomAtCursor(bool enabled)
+{
+    m_zoomAtCursor = enabled;
+}
+
+QRect PinWindow::contentRect() const
+{
+    return QRect(m_imageLabel->mapToGlobal(QPoint()), m_imageLabel->size());
 }
 
 void PinWindow::mousePressEvent(QMouseEvent *event)
@@ -144,6 +183,8 @@ void PinWindow::mouseReleaseEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_isDragging = false;
         m_currentHandle = ResizeHandle::None;
+        emit sigSnapGuidesChanged(this, {});
+        notifyContentGeometryChanged();
         updateCursor(hitTest(event->position().toPoint()));
     }
 }
@@ -157,12 +198,36 @@ void PinWindow::mouseDoubleClickEvent(QMouseEvent *event)
 
 void PinWindow::keyPressEvent(QKeyEvent *event)
 {
+    if (event->modifiers().testFlag(Qt::ControlModifier)) {
+        const int key = event->key();
+        if (key >= Qt::Key_0 && key <= Qt::Key_9) {
+            setWindowOpacity(key == Qt::Key_0 ? 1.0 : qreal(key - Qt::Key_0) / 10.0);
+            return;
+        }
+    }
+
     if (event->key() == Qt::Key_Plus || event->key() == Qt::Key_Equal) {
-        scaleContentBy(1.1);
+        scaleContentBy(1.1, contentRect().center());
         return;
     }
     if (event->key() == Qt::Key_Minus) {
-        scaleContentBy(1.0 / 1.1);
+        scaleContentBy(1.0 / 1.1, contentRect().center());
+        return;
+    }
+    if (event->key() == Qt::Key_1) {
+        applyTransform(QTransform().rotate(-90));
+        return;
+    }
+    if (event->key() == Qt::Key_2) {
+        applyTransform(QTransform().rotate(90));
+        return;
+    }
+    if (event->key() == Qt::Key_3) {
+        applyTransform(QTransform().scale(-1, 1));
+        return;
+    }
+    if (event->key() == Qt::Key_4) {
+        applyTransform(QTransform().scale(1, -1));
         return;
     }
 
@@ -197,7 +262,7 @@ void PinWindow::wheelEvent(QWheelEvent *event)
     if (event->modifiers().testFlag(Qt::ControlModifier)) {
         adjustOpacity(direction);
     } else {
-        scaleContentBy(direction > 0 ? 1.1 : 1.0 / 1.1);
+        scaleContentBy(direction > 0 ? 1.1 : 1.0 / 1.1, event->globalPosition().toPoint());
     }
     event->accept();
 }
@@ -218,6 +283,56 @@ void PinWindow::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     updateImageLabelGeometry();
+    refreshDisplayedPixmap();
+    notifyContentGeometryChanged();
+}
+
+void PinWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    const QMimeData *mimeData = event->mimeData();
+    const bool       hasImage = mimeData->hasImage() || !mimeData->imageData().isNull();
+    const bool       hasFile = std::any_of(mimeData->urls().cbegin(), mimeData->urls().cend(), [](const QUrl &url) {
+        return url.isLocalFile();
+    });
+    if (hasImage || hasFile) {
+        event->acceptProposedAction();
+        return;
+    }
+    event->ignore();
+}
+
+void PinWindow::dropEvent(QDropEvent *event)
+{
+    const QMimeData *mimeData = event->mimeData();
+    QImage           image;
+    if (mimeData->hasImage()) {
+        image = qvariant_cast<QImage>(mimeData->imageData());
+    }
+    if (image.isNull()) {
+        for (const QUrl &url : mimeData->urls()) {
+            if (!url.isLocalFile()) {
+                continue;
+            }
+            QImageReader reader(url.toLocalFile());
+            reader.setAutoTransform(true);
+            const QSize sourceSize = reader.size();
+            if (sourceSize.isValid() && !canCreatePinImage(sourceSize)) {
+                reader.setScaledSize(boundedPinImageSize(sourceSize));
+            }
+            image = reader.read();
+            image = limitPinImageSize(image);
+            if (!image.isNull()) {
+                break;
+            }
+        }
+    }
+    if (image.isNull()) {
+        event->ignore();
+        return;
+    }
+
+    replaceImage(image);
+    event->acceptProposedAction();
 }
 
 void PinWindow::createContextMenu()
@@ -285,6 +400,7 @@ void PinWindow::updateImageLabelGeometry()
         return;
     }
     m_imageLabel->setGeometry(rect().adjusted(SHADOW_MARGIN, SHADOW_MARGIN, -SHADOW_MARGIN, -SHADOW_MARGIN));
+    refreshDisplayedPixmap();
 }
 
 void PinWindow::copyImage() const
@@ -338,49 +454,118 @@ void PinWindow::applyTransform(const QTransform &transform)
         return;
     }
 
-    const QPoint  content_top_left = m_imageLabel->mapToGlobal(QPoint());
+    const QRect   oldContent = contentRect();
     const QPixmap transformed = m_currentImage.transformed(transform, Qt::FastTransformation);
     if (transformed.isNull()) {
         return;
     }
 
     m_currentImage = transformed;
-    m_imageLabel->setPixmap(m_currentImage);
-    const QRect content_rect(content_top_left, m_currentImage.deviceIndependentSize().toSize());
-    setGeometry(content_rect.adjusted(-SHADOW_MARGIN, -SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN));
-    updateImageLabelGeometry();
+    m_displayedSize = {};
+    const QRectF transformedBounds = transform.mapRect(QRectF(QPointF(0, 0), QSizeF(oldContent.size())));
+    const QSize  targetSize(qMax(1, qRound(qAbs(transformedBounds.width()))),
+                           qMax(1, qRound(qAbs(transformedBounds.height()))));
+    QRect        targetContentRect(QPoint(), targetSize);
+    targetContentRect.moveCenter(oldContent.center());
+    setContentGeometry(targetContentRect);
+    notifyContentGeometryChanged();
 }
 
-void PinWindow::scaleContentBy(qreal factor)
+void PinWindow::scaleContentBy(qreal factor, const QPoint &anchorGlobal)
 {
-    const QPoint center = m_imageLabel->mapToGlobal(m_imageLabel->rect().center());
-    const QSize  next_size(qBound(MIN_CONTENT_SIZE, qRound(m_imageLabel->width() * factor), MAX_CONTENT_SIZE),
-                          qBound(MIN_CONTENT_SIZE, qRound(m_imageLabel->height() * factor), MAX_CONTENT_SIZE));
-    QRect        content_rect(QPoint(), next_size);
-    content_rect.moveCenter(center);
-    setGeometry(content_rect.adjusted(-SHADOW_MARGIN, -SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN));
-    updateImageLabelGeometry();
+    const QRect  oldContent = contentRect();
+    const QPoint anchor = m_zoomAtCursor ? anchorGlobal : oldContent.center();
+    const qreal  xRatio = qreal(anchor.x() - oldContent.left()) / qMax(1, oldContent.width());
+    const qreal  yRatio = qreal(anchor.y() - oldContent.top()) / qMax(1, oldContent.height());
+    const QSize  nextSize(qBound(MIN_CONTENT_SIZE, qRound(m_imageLabel->width() * factor), MAX_CONTENT_SIZE),
+                         qBound(MIN_CONTENT_SIZE, qRound(m_imageLabel->height() * factor), MAX_CONTENT_SIZE));
+    QRect        targetContentRect(QPoint(), nextSize);
+    targetContentRect.moveTopLeft(
+        QPoint(qRound(anchor.x() - nextSize.width() * xRatio), qRound(anchor.y() - nextSize.height() * yRatio)));
+    setContentGeometry(targetContentRect);
+    notifyContentGeometryChanged();
 }
 
 void PinWindow::moveContentBy(const QPoint &delta)
 {
-    QRect next_geometry = geometry().translated(delta);
+    QRect nextGeometry = geometry().translated(delta);
     if (QScreen *screen = QGuiApplication::screenAt(frameGeometry().center())) {
         const QRect available = screen->availableGeometry();
-        next_geometry.moveLeft(qBound(available.left() - SHADOW_MARGIN,
-                                      next_geometry.left(),
-                                      available.right() - next_geometry.width() + SHADOW_MARGIN + 1));
-        next_geometry.moveTop(qBound(available.top() - SHADOW_MARGIN,
-                                     next_geometry.top(),
-                                     available.bottom() - next_geometry.height() + SHADOW_MARGIN + 1));
+        nextGeometry.moveLeft(qBound(available.left() - SHADOW_MARGIN,
+                                     nextGeometry.left(),
+                                     available.right() - nextGeometry.width() + SHADOW_MARGIN + 1));
+        nextGeometry.moveTop(qBound(available.top() - SHADOW_MARGIN,
+                                    nextGeometry.top(),
+                                    available.bottom() - nextGeometry.height() + SHADOW_MARGIN + 1));
     }
-    move(next_geometry.topLeft());
+    move(nextGeometry.topLeft());
+    notifyContentGeometryChanged();
 }
 
 void PinWindow::adjustOpacity(int direction)
 {
     const qreal next_opacity = qBound(0.2, windowOpacity() + direction * 0.05, 1.0);
     setWindowOpacity(next_opacity);
+}
+
+void PinWindow::setContentGeometry(const QRect &contentRect)
+{
+    setGeometry(contentRect.adjusted(-SHADOW_MARGIN, -SHADOW_MARGIN, SHADOW_MARGIN, SHADOW_MARGIN));
+    updateImageLabelGeometry();
+    refreshDisplayedPixmap();
+}
+
+void PinWindow::applyClickThroughStyle()
+{
+    const HWND     window = reinterpret_cast<HWND>(winId());
+    const LONG_PTR currentStyle = GetWindowLongPtrW(window, GWL_EXSTYLE);
+    const LONG_PTR nextStyle = m_clickThrough ? currentStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED
+                                              : currentStyle & ~WS_EX_TRANSPARENT;
+    SetWindowLongPtrW(window, GWL_EXSTYLE, nextStyle);
+}
+
+void PinWindow::notifyContentGeometryChanged()
+{
+    const QRect contentGeometry = contentRect();
+    if (contentGeometry == m_reportedContentRect) {
+        return;
+    }
+    m_reportedContentRect = contentGeometry;
+    emit sigContentGeometryChanged(this, contentGeometry);
+}
+
+void PinWindow::refreshDisplayedPixmap()
+{
+    if (m_imageLabel == nullptr) {
+        return;
+    }
+    if (m_currentImage.isNull() || m_imageLabel->size().isEmpty()) {
+        m_imageLabel->clear();
+        m_displayedSize = {};
+        return;
+    }
+    const qreal devicePixelRatio = devicePixelRatioF();
+    if (m_displayedSize == m_imageLabel->size() && qFuzzyCompare(m_displayedDevicePixelRatio, devicePixelRatio)) {
+        return;
+    }
+
+    const Qt::TransformationMode mode = m_smoothScaling ? Qt::SmoothTransformation : Qt::FastTransformation;
+    const QSize                  targetPixels((QSizeF(m_imageLabel->size()) * devicePixelRatio).toSize());
+    QPixmap                      displayed = m_currentImage.scaled(targetPixels, Qt::IgnoreAspectRatio, mode);
+    displayed.setDevicePixelRatio(devicePixelRatio);
+    m_imageLabel->setPixmap(displayed);
+    m_displayedSize = m_imageLabel->size();
+    m_displayedDevicePixelRatio = devicePixelRatio;
+}
+
+void PinWindow::replaceImage(const QImage &image)
+{
+    if (image.isNull()) {
+        return;
+    }
+    m_currentImage = QPixmap::fromImage(image);
+    m_displayedSize = {};
+    refreshDisplayedPixmap();
 }
 
 PinWindow::ResizeHandle PinWindow::hitTest(const QPoint &pos) const
@@ -480,6 +665,26 @@ void PinWindow::adjustRect(const QPoint &pos)
     if (newGeometry.height() < minimum_size)
         newGeometry.setHeight(minimum_size);
 
+    if (m_currentHandle == ResizeHandle::Move) {
+        const QRect contentRect(newGeometry.topLeft() + QPoint(SHADOW_MARGIN, SHADOW_MARGIN),
+                                QSize(newGeometry.width() - SHADOW_MARGIN * 2,
+                                      newGeometry.height() - SHADOW_MARGIN * 2));
+        QScreen    *screen = QGuiApplication::screenAt(contentRect.center());
+        if (screen != nullptr) {
+            const PinSnapResult snap = PinSnapResolver::resolve(contentRect,
+                                                                screen->availableGeometry(),
+                                                                m_snapTargets,
+                                                                m_snapDistancePx);
+            newGeometry.translate(snap.contentRect.topLeft() - contentRect.topLeft());
+            emit sigSnapGuidesChanged(this, snap.guides);
+        } else {
+            emit sigSnapGuidesChanged(this, {});
+        }
+    } else {
+        emit sigSnapGuidesChanged(this, {});
+    }
+
     setGeometry(newGeometry);
-    update();
+    updateImageLabelGeometry();
+    notifyContentGeometryChanged();
 }

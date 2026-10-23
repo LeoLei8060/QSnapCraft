@@ -206,17 +206,29 @@ void SettingsWindowTest::appliesPinAndOcrSettings()
     QVERIFY(window.findChild<QWidget *>(QStringLiteral("page_OCR")));
     auto *shadow = window.findChild<QCheckBox *>(QStringLiteral("check_PinShadow"));
     auto *stay_on_top = window.findChild<QCheckBox *>(QStringLiteral("check_PinStayOnTop"));
+    auto *smoothScaling = window.findChild<QCheckBox *>(QStringLiteral("check_PinSmoothScaling"));
+    auto *zoomAtCursor = window.findChild<QCheckBox *>(QStringLiteral("check_PinZoomAtCursor"));
+    auto *recoveryLimit = window.findChild<QSpinBox *>(QStringLiteral("spin_PinRecoveryLimit"));
+    auto *snapDistance = window.findChild<QSpinBox *>(QStringLiteral("spin_PinSnapDistance"));
     auto *font_size = window.findChild<QSpinBox *>(QStringLiteral("spin_TextImageFontSize"));
     auto *ocr_language = window.findChild<QComboBox *>(QStringLiteral("combo_OcrLanguage"));
     auto *apply = window.findChild<QPushButton *>(QStringLiteral("btn_Apply"));
     QVERIFY(shadow);
     QVERIFY(stay_on_top);
+    QVERIFY(smoothScaling);
+    QVERIFY(zoomAtCursor);
+    QVERIFY(recoveryLimit);
+    QVERIFY(snapDistance);
     QVERIFY(font_size);
     QVERIFY(ocr_language);
     QVERIFY(apply);
 
     shadow->setChecked(false);
     stay_on_top->setChecked(false);
+    smoothScaling->setChecked(false);
+    zoomAtCursor->setChecked(false);
+    recoveryLimit->setValue(9);
+    snapDistance->setValue(14);
     font_size->setValue(22);
     ocr_language->setCurrentIndex(0);
     QTest::mouseClick(apply, Qt::LeftButton);
@@ -224,6 +236,10 @@ void SettingsWindowTest::appliesPinAndOcrSettings()
     const ApplicationPreferences preferences = GlobalConfig::instance()->getPreferences();
     QVERIFY(!preferences.pin.showShadow);
     QVERIFY(!preferences.pin.stayOnTop);
+    QVERIFY(!preferences.pin.smoothScaling);
+    QVERIFY(!preferences.pin.zoomAtCursor);
+    QCOMPARE(preferences.pin.recoveryLimit, 9);
+    QCOMPARE(preferences.pin.snapDistancePx, 14);
     QCOMPARE(preferences.pin.textToImage.fontSize, 22);
 }
 

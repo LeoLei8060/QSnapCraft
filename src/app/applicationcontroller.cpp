@@ -66,12 +66,12 @@ bool ApplicationController::initialize()
     connect(m_captureSession.get(), &CaptureSession::sigFinished, this, [this](const CaptureResult &result) {
         restoreCaptureBar();
         if (result.intent == CaptureIntent::kPin && !result.image.isNull()) {
-            m_pinPool->pinImage(QPixmap::fromImage(result.image), result.globalPosition);
+            m_pinPool->pinImage(QPixmap::fromImage(result.image), result.globalPosition, result.logicalSelection.size());
         }
     });
     connect(m_captureSession.get(), &CaptureSession::sigPinned, this, [this](const CaptureResult &result) {
         if (!result.image.isNull()) {
-            m_pinPool->pinImage(QPixmap::fromImage(result.image), result.globalPosition);
+            m_pinPool->pinImage(QPixmap::fromImage(result.image), result.globalPosition, result.logicalSelection.size());
         }
     });
     connect(m_captureSession.get(), &CaptureSession::sigCancelled, this, [this]() { restoreCaptureBar(); });

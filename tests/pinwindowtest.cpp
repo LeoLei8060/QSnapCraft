@@ -5,16 +5,25 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QImage>
 #include <QLabel>
 #include <QMenu>
+#include <QMimeData>
 #include <QPixmap>
 #include <QPointer>
 #include <QScreen>
+#include <QTemporaryDir>
 #include <QTransform>
+#include <QUrl>
 #include <QWheelEvent>
 #include <QtTest>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 class PinWindowTest : public QObject
 {
@@ -29,15 +38,32 @@ private slots:
     void closeHidesAndDestroyDeletesWindow();
     void clipboardImageCreatesPinnedWindow();
     void clipboardTextCreatesPinnedWindow();
+    void highDpiClipboardImageKeepsLogicalSize();
+    void explicitLogicalSizeKeepsHighResolutionCapture();
     void arrowKeysMovePinnedWindow();
+    void arrowKeysReportUpdatedContentGeometry();
+    void sizeChangeReportsContentGeometryOnce();
     void wheelZoomsAroundContentCenter();
     void keyboardPlusMinusZoom();
+    void keyboardRotationAndFlip();
+    void rotationPreservesDisplayedSize();
+    void controlNumberKeysSetOpacityPresets();
     void controlWheelAdjustsOpacityWithinLimits();
+    void wheelZoomsAroundCursorByDefault();
+    void draggingSnapsToConfiguredTarget();
+    void hiddenPinsDoNotParticipateInMagneticSnapping();
+    void smoothScalingCanBeDisabled();
+    void dropReplacesPinnedImage();
     void recoverLastPinShowsClosedWindow();
+    void recoveryPoolDropsOldestPinBeyondLimit();
     void togglePinsVisibilityHidesAndShowsAll();
+    void showAllDoesNotReopenClosedPins();
     void clickThroughTogglesPinUnderPoint();
+    void clickThroughUsesTopmostOverlappingPin();
+    void clickThroughSurvivesStayOnTopChange();
     void offscreenPinIsClampedAfterTopologyChange();
     void appliesShadowAndStayOnTopSettings();
+    void windowShadowOverrideSurvivesUnrelatedSettingsRefresh();
 };
 
 namespace {
@@ -252,6 +278,51 @@ void PinWindowTest::clipboardTextCreatesPinnedWindow()
     QVERIFY(content->pixmap().height() > 30);
 }
 
+void PinWindowTest::highDpiClipboardImageKeepsLogicalSize()
+{
+    QImage image(200, 120, QImage::Format_ARGB32);
+    image.fill(Qt::red);
+    QPixmap pixmap = QPixmap::fromImage(image);
+    pixmap.setDevicePixelRatio(2.0);
+    QApplication::clipboard()->setPixmap(pixmap);
+    QTest::qWait(20);
+    if (QApplication::clipboard()->pixmap().isNull()) {
+        QSKIP("System clipboard is unavailable in this test session");
+    }
+
+    PinPool manager;
+    QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));
+
+    PinWindow *pinnedWindow = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            pinnedWindow = candidate;
+            break;
+        }
+    }
+    QVERIFY(pinnedWindow);
+    QCOMPARE(pinnedWindow->contentRect().size(), QSize(100, 60));
+}
+
+void PinWindowTest::explicitLogicalSizeKeepsHighResolutionCapture()
+{
+    QImage image(200, 120, QImage::Format_ARGB32);
+    image.fill(Qt::red);
+
+    PinPool manager;
+    manager.pinImage(QPixmap::fromImage(image), QPoint(320, 320), QSize(100, 60));
+
+    PinWindow *pinnedWindow = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            pinnedWindow = candidate;
+            break;
+        }
+    }
+    QVERIFY(pinnedWindow);
+    QCOMPARE(pinnedWindow->contentRect().size(), QSize(100, 60));
+}
+
 void PinWindowTest::arrowKeysMovePinnedWindow()
 {
     PinWindow window;
@@ -266,6 +337,32 @@ void PinWindowTest::arrowKeysMovePinnedWindow()
 
     QTest::keyClick(&window, Qt::Key_Right, Qt::ShiftModifier);
     QCOMPARE(window.pos(), start + QPoint(9, -1));
+}
+
+void PinWindowTest::arrowKeysReportUpdatedContentGeometry()
+{
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+    window.setFocus();
+
+    QSignalSpy geometrySpy(&window, &PinWindow::sigContentGeometryChanged);
+    QTest::keyClick(&window, Qt::Key_Right);
+    QCOMPARE(geometrySpy.count(), 1);
+    const QRect reported = geometrySpy.constFirst().constLast().value<QRect>();
+    QCOMPARE(reported.left(), 301);
+}
+
+void PinWindowTest::sizeChangeReportsContentGeometryOnce()
+{
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+    window.setFocus();
+
+    QSignalSpy geometrySpy(&window, &PinWindow::sigContentGeometryChanged);
+    QTest::keyClick(&window, Qt::Key_Plus);
+    QCOMPARE(geometrySpy.count(), 1);
 }
 
 void PinWindowTest::wheelZoomsAroundContentCenter()
@@ -315,6 +412,52 @@ void PinWindowTest::keyboardPlusMinusZoom()
     QVERIFY(content->width() < zoomed_size.width());
 }
 
+void PinWindowTest::keyboardRotationAndFlip()
+{
+    PinWindow     window;
+    const QPixmap source = testImage();
+    window.pinImage(source, QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+    window.setFocus();
+
+    QTest::keyClick(&window, Qt::Key_1);
+    QCOMPARE(copiedImage(window), source.toImage().transformed(QTransform().rotate(-90)));
+
+    QTest::keyClick(&window, Qt::Key_2);
+    QCOMPARE(copiedImage(window), source.toImage());
+
+    QTest::keyClick(&window, Qt::Key_3);
+    QCOMPARE(copiedImage(window), source.toImage().mirrored(true, false));
+
+    QTest::keyClick(&window, Qt::Key_4);
+    QCOMPARE(copiedImage(window), source.toImage().mirrored(true, true));
+}
+
+void PinWindowTest::rotationPreservesDisplayedSize()
+{
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+    window.setFocus();
+
+    QTest::keyClick(&window, Qt::Key_1);
+    QCOMPARE(window.contentRect().size(), QSize(80, 100));
+}
+
+void PinWindowTest::controlNumberKeysSetOpacityPresets()
+{
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+    window.setFocus();
+
+    QTest::keyClick(&window, Qt::Key_4, Qt::ControlModifier);
+    QCOMPARE(window.windowOpacity(), 0.4);
+
+    QTest::keyClick(&window, Qt::Key_0, Qt::ControlModifier);
+    QCOMPARE(window.windowOpacity(), 1.0);
+}
+
 void PinWindowTest::controlWheelAdjustsOpacityWithinLimits()
 {
     PinWindow window;
@@ -337,6 +480,173 @@ void PinWindowTest::controlWheelAdjustsOpacityWithinLimits()
 
     QVERIFY(window.windowOpacity() >= 0.19);
     QVERIFY(window.windowOpacity() <= 0.21);
+}
+
+void PinWindowTest::wheelZoomsAroundCursorByDefault()
+{
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+
+    auto *content = window.findChild<QLabel *>(QStringLiteral("pinImageContent"));
+    QVERIFY(content);
+    const QPoint anchorBefore = content->mapToGlobal(QPoint(content->width() / 4, content->height() / 2));
+    const QPoint localPosition = window.mapFromGlobal(anchorBefore);
+
+    QWheelEvent zoomEvent(localPosition,
+                          anchorBefore,
+                          QPoint(),
+                          QPoint(0, 120),
+                          Qt::NoButton,
+                          Qt::NoModifier,
+                          Qt::NoScrollPhase,
+                          false);
+    QCoreApplication::sendEvent(&window, &zoomEvent);
+
+    const QPoint anchorAfter = content->mapToGlobal(QPoint(content->width() / 4, content->height() / 2));
+    QVERIFY((anchorAfter - anchorBefore).manhattanLength() <= 2);
+}
+
+void PinWindowTest::draggingSnapsToConfiguredTarget()
+{
+    PinWindow window;
+    window.setSnapDistancePx(8);
+    window.setSnapTargets({QRect(300, 330, 100, 80)});
+    window.pinImage(testImage(), QRect(QPoint(194, 300), QSize(100, 80)));
+    window.show();
+
+    QSignalSpy   guideSpy(&window, &PinWindow::sigSnapGuidesChanged);
+    const QPoint localPosition = window.rect().center();
+    const QPoint globalPosition = window.mapToGlobal(localPosition);
+    QMouseEvent  press(QEvent::MouseButtonPress,
+                      localPosition,
+                      globalPosition,
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QCoreApplication::sendEvent(&window, &press);
+
+    QMouseEvent move(QEvent::MouseMove,
+                     localPosition + QPoint(2, 0),
+                     globalPosition + QPoint(2, 0),
+                     Qt::NoButton,
+                     Qt::LeftButton,
+                     Qt::NoModifier);
+    QCoreApplication::sendEvent(&window, &move);
+
+    QCOMPARE(window.contentRect().left(), 200);
+    QTRY_VERIFY(!guideSpy.isEmpty());
+    const QVector<QLineF> guides = guideSpy.constLast().constLast().value<QVector<QLineF>>();
+    QCOMPARE(guides.size(), 1);
+    QCOMPARE(guides.constFirst().x1(), 300.0);
+
+    QMouseEvent release(QEvent::MouseButtonRelease,
+                        localPosition + QPoint(2, 0),
+                        globalPosition + QPoint(2, 0),
+                        Qt::LeftButton,
+                        Qt::NoButton,
+                        Qt::NoModifier);
+    QCoreApplication::sendEvent(&window, &release);
+}
+
+void PinWindowTest::hiddenPinsDoNotParticipateInMagneticSnapping()
+{
+    PinPool manager;
+    manager.pinImage(testImage().scaled(100, 80), QPoint(300, 330));
+
+    PinWindow *targetPin = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            targetPin = candidate;
+            break;
+        }
+    }
+    QVERIFY(targetPin);
+
+    manager.pinImage(testImage().scaled(100, 80), QPoint(194, 300));
+    PinWindow *movingPin = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget);
+            candidate != nullptr && candidate != targetPin && candidate->isVisible()) {
+            movingPin = candidate;
+            break;
+        }
+    }
+    QVERIFY(movingPin);
+    manager.hideAllPins();
+    movingPin->show();
+
+    const QPoint localPosition = movingPin->rect().center();
+    const QPoint globalPosition = movingPin->mapToGlobal(localPosition);
+    QMouseEvent  press(QEvent::MouseButtonPress,
+                      localPosition,
+                      globalPosition,
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
+    QCoreApplication::sendEvent(movingPin, &press);
+    QMouseEvent move(QEvent::MouseMove,
+                     localPosition + QPoint(2, 0),
+                     globalPosition + QPoint(2, 0),
+                     Qt::NoButton,
+                     Qt::LeftButton,
+                     Qt::NoModifier);
+    QCoreApplication::sendEvent(movingPin, &move);
+
+    QCOMPARE(movingPin->contentRect().left(), 196);
+    QMouseEvent release(QEvent::MouseButtonRelease,
+                        localPosition + QPoint(2, 0),
+                        globalPosition + QPoint(2, 0),
+                        Qt::LeftButton,
+                        Qt::NoButton,
+                        Qt::NoModifier);
+    QCoreApplication::sendEvent(movingPin, &release);
+}
+
+void PinWindowTest::smoothScalingCanBeDisabled()
+{
+    QImage source(2, 2, QImage::Format_ARGB32);
+    source.fill(Qt::black);
+    source.setPixelColor(0, 0, Qt::red);
+    source.setPixelColor(1, 1, Qt::white);
+    const QPixmap pixmap = QPixmap::fromImage(source);
+
+    PinWindow window;
+    window.setSmoothScaling(false);
+    window.pinImage(pixmap, QRect(QPoint(300, 300), QSize(80, 60)));
+
+    auto *content = window.findChild<QLabel *>(QStringLiteral("pinImageContent"));
+    QVERIFY(content);
+    const QImage expected = source.scaled(content->size(), Qt::IgnoreAspectRatio, Qt::FastTransformation);
+    QCOMPARE(content->pixmap().toImage().convertToFormat(QImage::Format_ARGB32),
+             expected.convertToFormat(QImage::Format_ARGB32));
+}
+
+void PinWindowTest::dropReplacesPinnedImage()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("replacement.png"));
+    QImage        replacement(5, 3, QImage::Format_ARGB32);
+    replacement.fill(Qt::darkGreen);
+    QVERIFY(replacement.save(path));
+
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+
+    QMimeData mimeData;
+    mimeData.setUrls({QUrl::fromLocalFile(path)});
+    const QPoint    position = window.rect().center();
+    QDragEnterEvent dragEnter(position, Qt::CopyAction, &mimeData, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(&window, &dragEnter);
+    QVERIFY(dragEnter.isAccepted());
+
+    QDropEvent dropEvent(position, Qt::CopyAction, &mimeData, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(&window, &dropEvent);
+    QVERIFY(dropEvent.isAccepted());
+    QCOMPARE(copiedImage(window).convertToFormat(QImage::Format_ARGB32),
+             replacement.convertToFormat(QImage::Format_ARGB32));
 }
 
 void PinWindowTest::recoverLastPinShowsClosedWindow()
@@ -364,6 +674,41 @@ void PinWindowTest::recoverLastPinShowsClosedWindow()
     QVERIFY(pin_window->isVisible());
 }
 
+void PinWindowTest::recoveryPoolDropsOldestPinBeyondLimit()
+{
+    PinPool manager;
+    manager.setRecoveryLimit(1);
+
+    manager.pinImage(testImage(), QPoint(320, 320));
+    PinWindow *first = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            first = candidate;
+            break;
+        }
+    }
+    QVERIFY(first);
+    QPointer<PinWindow> firstGuard(first);
+    action(*first, QStringLiteral("action_ClosePin"))->trigger();
+
+    manager.pinImage(testImage(), QPoint(500, 320));
+    PinWindow *second = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            second = candidate;
+            break;
+        }
+    }
+    QVERIFY(second);
+    action(*second, QStringLiteral("action_ClosePin"))->trigger();
+
+    QTRY_VERIFY_WITH_TIMEOUT(firstGuard.isNull(), 1000);
+    bool recovered = false;
+    QVERIFY(QMetaObject::invokeMethod(&manager, "recoverLastPin", Qt::DirectConnection, Q_RETURN_ARG(bool, recovered)));
+    QVERIFY(recovered);
+    QVERIFY(second->isVisible());
+}
+
 void PinWindowTest::togglePinsVisibilityHidesAndShowsAll()
 {
     PinPool manager;
@@ -387,6 +732,37 @@ void PinWindowTest::togglePinsVisibilityHidesAndShowsAll()
     for (PinWindow *pin_window : pin_windows) {
         QVERIFY(pin_window->isVisible());
     }
+}
+
+void PinWindowTest::showAllDoesNotReopenClosedPins()
+{
+    PinPool manager;
+    manager.pinImage(testImage(), QPoint(320, 320));
+    manager.pinImage(testImage(), QPoint(500, 320));
+
+    QVector<PinWindow *> pinWindows;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *pinWindow = qobject_cast<PinWindow *>(widget); pinWindow != nullptr && pinWindow->isVisible()) {
+            pinWindows.append(pinWindow);
+        }
+    }
+    QCOMPARE(pinWindows.size(), 2);
+
+    PinWindow *closedPin = pinWindows.constFirst();
+    PinWindow *openPin = pinWindows.constLast();
+    action(*closedPin, QStringLiteral("action_ClosePin"))->trigger();
+    QVERIFY(!closedPin->isVisible());
+
+    QVERIFY(QMetaObject::invokeMethod(&manager, "hideAllPins"));
+    QVERIFY(!openPin->isVisible());
+    QVERIFY(QMetaObject::invokeMethod(&manager, "showAllPins"));
+    QVERIFY(openPin->isVisible());
+    QVERIFY(!closedPin->isVisible());
+
+    bool recovered = false;
+    QVERIFY(QMetaObject::invokeMethod(&manager, "recoverLastPin", Qt::DirectConnection, Q_RETURN_ARG(bool, recovered)));
+    QVERIFY(recovered);
+    QVERIFY(closedPin->isVisible());
 }
 
 void PinWindowTest::clickThroughTogglesPinUnderPoint()
@@ -422,6 +798,72 @@ void PinWindowTest::clickThroughTogglesPinUnderPoint()
     QVERIFY(!pin_window->testAttribute(Qt::WA_TransparentForMouseEvents));
 }
 
+void PinWindowTest::clickThroughUsesTopmostOverlappingPin()
+{
+#ifndef Q_OS_WIN
+    QSKIP("Windows native Z-order test");
+#else
+    PinPool manager;
+    manager.pinImage(testImage().scaled(100, 80), QPoint(320, 320));
+    PinWindow *expectedTop = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *pinWindow = qobject_cast<PinWindow *>(widget); pinWindow != nullptr && pinWindow->isVisible()) {
+            expectedTop = pinWindow;
+            break;
+        }
+    }
+    QVERIFY(expectedTop);
+
+    manager.pinImage(testImage().scaled(100, 80), QPoint(320, 320));
+    PinWindow *otherPin = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *pinWindow = qobject_cast<PinWindow *>(widget);
+            pinWindow != nullptr && pinWindow != expectedTop && pinWindow->isVisible()) {
+            otherPin = pinWindow;
+            break;
+        }
+    }
+    QVERIFY(otherPin);
+
+    SetWindowPos(reinterpret_cast<HWND>(expectedTop->winId()),
+                 HWND_TOP,
+                 0,
+                 0,
+                 0,
+                 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    QTest::qWait(30);
+
+    bool toggled = false;
+    QVERIFY(QMetaObject::invokeMethod(&manager,
+                                      "toggleClickThroughAt",
+                                      Qt::DirectConnection,
+                                      Q_RETURN_ARG(bool, toggled),
+                                      Q_ARG(QPoint, expectedTop->contentRect().center())));
+    QVERIFY(toggled);
+    QVERIFY(expectedTop->isClickThrough());
+    QVERIFY(!otherPin->isClickThrough());
+#endif
+}
+
+void PinWindowTest::clickThroughSurvivesStayOnTopChange()
+{
+#ifndef Q_OS_WIN
+    QSKIP("Windows native style test");
+#else
+    PinWindow window;
+    window.pinImage(testImage(), QRect(QPoint(300, 300), QSize(100, 80)));
+    window.show();
+    window.setClickThrough(true);
+    window.setStayOnTop(false);
+
+    const HWND     windowHandle = reinterpret_cast<HWND>(window.winId());
+    const LONG_PTR style = GetWindowLongPtrW(windowHandle, GWL_EXSTYLE);
+    QVERIFY((style & WS_EX_TRANSPARENT) != 0);
+    QVERIFY(window.testAttribute(Qt::WA_TransparentForMouseEvents));
+#endif
+}
+
 void PinWindowTest::offscreenPinIsClampedAfterTopologyChange()
 {
     PinPool manager;
@@ -453,6 +895,30 @@ void PinWindowTest::appliesShadowAndStayOnTopSettings()
     QVERIFY(effect);
     QVERIFY(!effect->isEnabled());
     QVERIFY(!window.windowFlags().testFlag(Qt::WindowStaysOnTopHint));
+}
+
+void PinWindowTest::windowShadowOverrideSurvivesUnrelatedSettingsRefresh()
+{
+    PinPool manager;
+    manager.pinImage(testImage(), QPoint(320, 320));
+
+    PinWindow *pinWindow = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            pinWindow = candidate;
+            break;
+        }
+    }
+    QVERIFY(pinWindow);
+    QAction *shadowAction = action(*pinWindow, QStringLiteral("action_WindowShadow"));
+    auto    *effect = pinWindow->findChild<QGraphicsDropShadowEffect *>();
+    QVERIFY(shadowAction);
+    QVERIFY(effect);
+
+    shadowAction->trigger();
+    QVERIFY(!effect->isEnabled());
+    QVERIFY(QMetaObject::invokeMethod(&manager, "applyPinSettings"));
+    QVERIFY(!effect->isEnabled());
 }
 
 QTEST_MAIN(PinWindowTest)

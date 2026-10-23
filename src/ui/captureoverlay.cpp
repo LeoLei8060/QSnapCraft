@@ -13,6 +13,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPair>
 #include <QScreen>
 #include <QUndoStack>
 #include <QVBoxLayout>
@@ -23,6 +24,14 @@ constexpr int HOVER_THROTTLE_MS = 16;
 constexpr int DRAG_THRESHOLD_PX = 3;
 constexpr int ANCHOR_SIZE_PX = 6;
 constexpr int ANCHOR_HIT_PX = 6;
+constexpr int HINT_MARGIN_PX = 16;
+constexpr int HINT_PADDING_PX = 14;
+constexpr int HINT_ROW_HEIGHT_PX = 24;
+constexpr int HINT_COLUMN_GAP_PX = 18;
+constexpr int HINT_KEY_GAP_PX = 8;
+constexpr int HINT_KEY_MIN_WIDTH_PX = 34;
+constexpr int HINT_KEY_HEIGHT_PX = 18;
+constexpr int HINT_MAX_WIDTH_PX = 900;
 const QColor  MASK_COLOR(0, 0, 0, 110);
 const QColor  BORDER_COLOR(255, 255, 255);
 const QColor  HOVER_COLOR(0, 174, 255);
@@ -138,6 +147,10 @@ void CaptureOverlay::begin(const CaptureFrame &frame, const CaptureOptions &opti
     m_dragged = false;
     m_isResizing = false;
     m_isMoving = false;
+    m_confirmingSelection = false;
+    m_fullDesktopShortcutActive = false;
+    m_hintPanelAtTopLeft = false;
+    m_shortcutHintRect = {};
     m_detectionEnabled = true;
     m_detector.refresh();
 
@@ -196,6 +209,10 @@ CapturePhase CaptureOverlay::phase() const
 void CaptureOverlay::setSelection(const QRect &selection)
 {
     m_selectionState.setSelection(selection);
+    m_fullDesktopShortcutActive = false;
+    m_confirmingSelection = false;
+    m_hoverRect = {};
+    m_hoverHierarchy.clear();
     viewport()->update();
 }
 
@@ -211,6 +228,8 @@ void CaptureOverlay::enterAnnotating()
     }
     m_hoverRect = {};
     m_hoverHierarchy.clear();
+    m_confirmingSelection = false;
+    m_fullDesktopShortcutActive = false;
     setPhase(CapturePhase::kAnnotating);
     paintScene()->setTool(PaintTool::kNone);
     m_paintBar->setCurrentTool(PaintTool::kNone);
@@ -257,11 +276,11 @@ void CaptureOverlay::drawOverlay(QPainter &painter)
 {
     const QRect selection = m_selectionState.current();
     if (m_phase == CapturePhase::kSelecting) {
-        if (m_hoverRect.isValid() && !m_isDragging) {
+        if (m_hoverRect.isValid() && !m_isDragging && !selection.isValid()) {
             drawSelection(painter, m_hoverRect, true);
         }
         if (selection.isValid()) {
-            drawSelection(painter, selection, false);
+            drawSelection(painter, selection, m_fullDesktopShortcutActive);
         }
         drawMagnifier(painter);
     } else if (m_phase == CapturePhase::kAnnotating) {
@@ -357,6 +376,11 @@ void CaptureOverlay::mousePressEvent(QMouseEvent *event)
     if (event->button() != Qt::LeftButton) {
         return;
     }
+    if (m_selectionState.current().isValid()) {
+        m_confirmingSelection = true;
+        event->accept();
+        return;
+    }
 
     m_anchor = m_pointerPosition;
     m_dragged = false;
@@ -367,6 +391,7 @@ void CaptureOverlay::mousePressEvent(QMouseEvent *event)
 
     m_adopting = m_hoverRect.isValid();
     if (m_adopting) {
+        m_fullDesktopShortcutActive = false;
         m_selectionState.setSelection(m_hoverRect);
     } else {
         m_selectionState.beginDrag(m_pointerPosition);
@@ -394,6 +419,18 @@ void CaptureOverlay::mouseMoveEvent(QMouseEvent *event)
             return;
         }
         PaintView::mouseMoveEvent(event);
+        return;
+    }
+
+    if (!m_isDragging && !m_selectionState.isValid() && m_options.showTips
+        && m_shortcutHintRect.contains(m_pointerPosition)) {
+        m_hintPanelAtTopLeft = !m_hintPanelAtTopLeft;
+        viewport()->update();
+    }
+
+    if (m_confirmingSelection) {
+        m_pointerPosition = event->position().toPoint();
+        event->accept();
         return;
     }
 
@@ -439,6 +476,13 @@ void CaptureOverlay::mouseReleaseEvent(QMouseEvent *event)
     }
 
     if (event->button() != Qt::LeftButton || !m_isDragging) {
+        if (event->button() == Qt::LeftButton && m_confirmingSelection) {
+            m_confirmingSelection = false;
+            if (m_selectionState.current().isValid()) {
+                emit sigSelectionConfirmed(m_selectionState.current());
+            }
+            return;
+        }
         return;
     }
 
@@ -525,11 +569,37 @@ void CaptureOverlay::keyPressEvent(QKeyEvent *event)
         viewport()->update();
         return;
     }
-    if ((event->key() == Qt::Key_F && event->modifiers() == Qt::NoModifier)
-        || (event->key() == Qt::Key_A && event->modifiers().testFlag(Qt::ControlModifier))) {
+    if (m_phase == CapturePhase::kSelecting && event->key() == Qt::Key_F && event->modifiers() == Qt::NoModifier) {
+        m_confirmingSelection = false;
+        if (m_fullDesktopShortcutActive) {
+            m_fullDesktopShortcutActive = false;
+            m_selectionState.clear();
+            m_hintPanelAtTopLeft = false;
+            m_hoverRect = {};
+            m_hoverHierarchy.clear();
+            m_pendingHoverPosition = m_pointerPosition;
+            updateHover();
+        } else {
+            m_selectionState.setSelection(QRect(QPoint(0, 0), m_frame.logicalComposite.size()));
+            m_fullDesktopShortcutActive = true;
+            m_hoverRect = {};
+            m_hoverHierarchy.clear();
+        }
+        viewport()->update();
+        return;
+    }
+    if (event->key() == Qt::Key_A && event->modifiers().testFlag(Qt::ControlModifier)) {
         m_selectionState.setSelection(QRect(QPoint(0, 0), m_frame.logicalComposite.size()));
+        m_fullDesktopShortcutActive = false;
+        m_confirmingSelection = false;
+        m_hoverRect = {};
+        m_hoverHierarchy.clear();
         updatePaintBarPosition();
         viewport()->update();
+        return;
+    }
+    if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && m_selectionState.current().isValid()) {
+        emit sigSelectionConfirmed(m_selectionState.current());
         return;
     }
     if (event->key() == Qt::Key_U && event->modifiers() == Qt::NoModifier) {
@@ -686,7 +756,8 @@ void CaptureOverlay::focusOutEvent(QFocusEvent *event)
 
 void CaptureOverlay::updateHover()
 {
-    if (m_phase != CapturePhase::kSelecting || m_isDragging || !m_detectionEnabled || !m_options.detectWindows) {
+    if (m_phase != CapturePhase::kSelecting || m_isDragging || m_selectionState.isValid() || !m_detectionEnabled
+        || !m_options.detectWindows) {
         return;
     }
 
@@ -806,16 +877,116 @@ void CaptureOverlay::drawMagnifier(QPainter &painter)
 
 void CaptureOverlay::drawTips(QPainter &painter)
 {
-    if (m_phase != CapturePhase::kSelecting) {
+    if (m_phase != CapturePhase::kSelecting || m_isDragging || m_selectionState.isValid()) {
         return;
     }
-    const QString text = QStringLiteral("拖动框选 · F 全屏 · P 光标 · Esc 取消");
-    QRect         rect(12, 12, painter.fontMetrics().horizontalAdvance(text) + 20, 28);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0, 0, 0, 170));
-    painter.drawRoundedRect(rect, 6, 6);
-    painter.setPen(Qt::white);
-    painter.drawText(rect, Qt::AlignCenter, text);
+
+    const QVector<QPair<QString, QString>> hints = {
+        {QStringLiteral("拖动"), QStringLiteral("框选区域")},
+        {QStringLiteral("单击"), QStringLiteral("自动捕获窗口/控件")},
+        {QStringLiteral("Tab"), QStringLiteral("开关元素检测")},
+        {QStringLiteral("F"), QStringLiteral("全屏 / 自动捕获")},
+        {QStringLiteral("M"), QStringLiteral("放大镜")},
+        {QStringLiteral("P"), QStringLiteral("捕获光标")},
+        {QStringLiteral("Shift"), QStringLiteral("RGB / HEX")},
+        {QStringLiteral("C"), QStringLiteral("复制颜色")},
+        {QStringLiteral(", / ."), QStringLiteral("前后选区")},
+        {QStringLiteral("Esc / 右键"), QStringLiteral("取消截图")},
+    };
+
+    painter.save();
+    QFont titleFont = painter.font();
+    titleFont.setPixelSize(13);
+    titleFont.setBold(true);
+    painter.setFont(titleFont);
+    const int titleHeight = painter.fontMetrics().height();
+
+    QFont rowFont = painter.font();
+    rowFont.setPixelSize(12);
+    rowFont.setBold(false);
+    painter.setFont(rowFont);
+
+    QFont keyFont = rowFont;
+    keyFont.setBold(true);
+    painter.setFont(keyFont);
+    const QFontMetrics keyMetrics = painter.fontMetrics();
+
+    const int    columnCount = width() >= 760 ? 4 : (width() >= 420 ? 2 : 1);
+    const int    rowCount = (hints.size() + columnCount - 1) / columnCount;
+    QVector<int> keyWidths(columnCount, HINT_KEY_MIN_WIDTH_PX);
+    QVector<int> labelWidths(columnCount, 0);
+    for (int index = 0; index < hints.size(); ++index) {
+        const int   column = index / rowCount;
+        const auto &hint = hints.at(index);
+        const int   keyWidth = keyMetrics.horizontalAdvance(hint.first) + 12;
+        keyWidths[column] = qMax(keyWidths.at(column), keyWidth);
+        painter.setFont(rowFont);
+        labelWidths[column] = qMax(labelWidths.at(column), painter.fontMetrics().horizontalAdvance(hint.second));
+        painter.setFont(keyFont);
+    }
+
+    QVector<int> columnWidths;
+    int          desiredWidth = HINT_PADDING_PX * 2 + HINT_COLUMN_GAP_PX * (columnCount - 1);
+    for (int column = 0; column < columnCount; ++column) {
+        columnWidths.append(keyWidths.at(column) + HINT_KEY_GAP_PX + labelWidths.at(column));
+        desiredWidth += columnWidths.constLast();
+    }
+    const int    availableWidth = qMax(1, width() - HINT_MARGIN_PX * 2);
+    const int    cardWidth = qMin(HINT_MAX_WIDTH_PX, qMin(desiredWidth, availableWidth));
+    const int    cardHeight = HINT_PADDING_PX * 2 + titleHeight + 8 + HINT_ROW_HEIGHT_PX * rowCount;
+    const QPoint cardPosition(HINT_MARGIN_PX,
+                              m_hintPanelAtTopLeft ? HINT_MARGIN_PX : height() - HINT_MARGIN_PX - cardHeight);
+    const QRect  card(cardPosition, QSize(cardWidth, cardHeight));
+    m_shortcutHintRect = card;
+
+    painter.setPen(QPen(QColor(255, 255, 255, 45), 1));
+    painter.setBrush(QColor(18, 22, 28, 224));
+    painter.drawRoundedRect(card.adjusted(0, 0, -1, -1), 8, 8);
+
+    painter.setFont(titleFont);
+    painter.setPen(QColor(245, 247, 250));
+    const QRect titleRect(card.left() + HINT_PADDING_PX,
+                          card.top() + HINT_PADDING_PX,
+                          card.width() - HINT_PADDING_PX * 2,
+                          titleHeight);
+    painter.drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter, QStringLiteral("截图快捷键"));
+
+    QVector<int> columnX;
+    int          currentX = card.left() + HINT_PADDING_PX;
+    for (int column = 0; column < columnCount; ++column) {
+        columnX.append(currentX);
+        currentX += columnWidths.at(column) + HINT_COLUMN_GAP_PX;
+    }
+    const int firstRowY = titleRect.bottom() + 9;
+    for (int index = 0; index < hints.size(); ++index) {
+        const int   column = index / rowCount;
+        const int   row = index % rowCount;
+        const int   keyWidth = keyWidths.at(column);
+        const int   columnStart = columnX.at(column);
+        const int   rowY = firstRowY + row * HINT_ROW_HEIGHT_PX;
+        const QRect keyRect(columnStart,
+                            rowY + (HINT_ROW_HEIGHT_PX - HINT_KEY_HEIGHT_PX) / 2,
+                            keyWidth,
+                            HINT_KEY_HEIGHT_PX);
+        const auto &hint = hints.at(index);
+
+        painter.setPen(QPen(QColor(255, 255, 255, 28), 1));
+        painter.setBrush(QColor(56, 63, 74, 235));
+        painter.drawRoundedRect(keyRect.adjusted(0, 0, -1, -1), 4, 4);
+
+        painter.setFont(keyFont);
+        painter.setPen(QColor(255, 255, 255));
+        painter.drawText(keyRect, Qt::AlignCenter, hint.first);
+
+        painter.setFont(rowFont);
+        painter.setPen(QColor(214, 220, 228));
+        const QRect labelRect(keyRect.right() + HINT_KEY_GAP_PX,
+                              rowY,
+                              columnWidths.at(column) - keyWidth - HINT_KEY_GAP_PX,
+                              HINT_ROW_HEIGHT_PX);
+        painter.drawText(labelRect, Qt::AlignLeft | Qt::AlignVCenter, hint.second);
+    }
+    painter.restore();
 }
 
 void CaptureOverlay::updateCapturedCursorPreview()

@@ -31,6 +31,10 @@ private:
 
     QCheckBox     *m_shadow{nullptr};
     QCheckBox     *m_stayOnTop{nullptr};
+    QCheckBox     *m_smoothScaling{nullptr};
+    QCheckBox     *m_zoomAtCursor{nullptr};
+    QSpinBox      *m_recoveryLimit{nullptr};
+    QSpinBox      *m_snapDistance{nullptr};
     QFontComboBox *m_fontFamily{nullptr};
     QSpinBox      *m_fontSize{nullptr};
     QSpinBox      *m_maxWidth{nullptr};

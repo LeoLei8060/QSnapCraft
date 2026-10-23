@@ -33,6 +33,10 @@ void PreferencesSettingsTest::roundTripsApplicationPreferences()
     expected.capture.soundEnabled = true;
     expected.capture.quickSavePath = QStringLiteral("C:/Quick");
     expected.capture.imageFormat = QStringLiteral("JPG");
+    expected.pin.recoveryLimit = 7;
+    expected.pin.snapDistancePx = 11;
+    expected.pin.smoothScaling = false;
+    expected.pin.zoomAtCursor = false;
 
     saveApplicationPreferences(settings, expected);
     settings.sync();
@@ -51,6 +55,10 @@ void PreferencesSettingsTest::roundTripsApplicationPreferences()
     QCOMPARE(actual.capture.soundEnabled, expected.capture.soundEnabled);
     QCOMPARE(actual.capture.quickSavePath, expected.capture.quickSavePath);
     QCOMPARE(actual.capture.imageFormat, expected.capture.imageFormat);
+    QCOMPARE(actual.pin.recoveryLimit, expected.pin.recoveryLimit);
+    QCOMPARE(actual.pin.snapDistancePx, expected.pin.snapDistancePx);
+    QCOMPARE(actual.pin.smoothScaling, expected.pin.smoothScaling);
+    QCOMPARE(actual.pin.zoomAtCursor, expected.pin.zoomAtCursor);
 }
 
 void PreferencesSettingsTest::writesOutputSettingsToSnipGroup()

@@ -1,14 +1,19 @@
 #pragma once
 
+#include <QLineF>
 #include <QPixmap>
 #include <QPoint>
 #include <QTransform>
+#include <QVector>
 #include <QWidget>
 
 class QAction;
 class QCloseEvent;
 class QContextMenuEvent;
+class QDragEnterEvent;
+class QDropEvent;
 class QGraphicsDropShadowEffect;
+class QImage;
 class QKeyEvent;
 class QLabel;
 class QMenu;
@@ -25,14 +30,21 @@ public:
     explicit PinWindow(QWidget *parent = nullptr);
     ~PinWindow();
 
-    void pinImage(const QPixmap &pixmap, const QRect &rect);
-    void setClickThrough(bool enabled);
-    bool isClickThrough() const;
-    void setShadowEnabled(bool enabled);
-    void setStayOnTop(bool enabled);
+    void  pinImage(const QPixmap &pixmap, const QRect &rect);
+    void  setClickThrough(bool enabled);
+    bool  isClickThrough() const;
+    void  setShadowEnabled(bool enabled);
+    void  setStayOnTop(bool enabled);
+    void  setSnapDistancePx(int distancePx);
+    void  setSnapTargets(const QVector<QRect> &targets);
+    void  setSmoothScaling(bool enabled);
+    void  setZoomAtCursor(bool enabled);
+    QRect contentRect() const;
 
 signals:
     void sigCloseRequested(PinWindow *window);
+    void sigContentGeometryChanged(PinWindow *window, const QRect &content_rect);
+    void sigSnapGuidesChanged(PinWindow *window, const QVector<QLineF> &guides);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -44,6 +56,8 @@ protected:
     void closeEvent(QCloseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
     void         createContextMenu();
@@ -51,9 +65,14 @@ private:
     void         copyImage() const;
     void         saveImageAs();
     void         applyTransform(const QTransform &transform);
-    void         scaleContentBy(qreal factor);
+    void         scaleContentBy(qreal factor, const QPoint &anchorGlobal);
     void         moveContentBy(const QPoint &delta);
     void         adjustOpacity(int direction);
+    void         setContentGeometry(const QRect &contentRect);
+    void         refreshDisplayedPixmap();
+    void         replaceImage(const QImage &image);
+    void         applyClickThroughStyle();
+    void         notifyContentGeometryChanged();
     ResizeHandle hitTest(const QPoint &pos) const;
     void         adjustRect(const QPoint &pos);
     void         updateCursor(ResizeHandle handle);
@@ -65,10 +84,17 @@ private:
     QPixmap                    m_currentImage;
     QPoint                     m_dragStartPos;
     QRect                      m_startGeometry;
+    QRect                      m_reportedContentRect;
+    QVector<QRect>             m_snapTargets;
+    QSize                      m_displayedSize;
+    qreal                      m_displayedDevicePixelRatio{1.0};
     ResizeHandle               m_currentHandle{ResizeHandle::None};
     bool                       m_isDragging{false};
     bool                       m_clickThrough{false};
     bool                       m_stayOnTop{true};
+    int                        m_snapDistancePx{8};
+    bool                       m_smoothScaling{true};
+    bool                       m_zoomAtCursor{true};
     static constexpr int       RESIZE_HANDLE_SIZE = 8;
     static constexpr int       SHADOW_MARGIN = 10;
     static constexpr int       MIN_CONTENT_SIZE = 50;

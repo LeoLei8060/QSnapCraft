@@ -54,6 +54,14 @@ set(QSNAPCRAFT_SOURCES
     src/pinboard/pinwindow.h
     src/pinboard/pinpool.cpp
     src/pinboard/pinpool.h
+    src/pinboard/pinimagelimits.cpp
+    src/pinboard/pinimagelimits.h
+    src/pinboard/pinsnapoverlay.cpp
+    src/pinboard/pinsnapoverlay.h
+    src/pinboard/pinsnapresolver.cpp
+    src/pinboard/pinsnapresolver.h
+    src/pinboard/pinscreenfit.cpp
+    src/pinboard/pinscreenfit.h
     src/pinboard/textimagerenderer.cpp
     src/pinboard/textimagerenderer.h
     src/platform/windows/desktopcapture.cpp
@@ -152,6 +160,9 @@ set(QSNAPCRAFT_TEST_SOURCES
     tests/paintbartest.cpp
     tests/paintscenetest.cpp
     tests/pinwindowtest.cpp
+    tests/pinimagelimitstest.cpp
+    tests/pinscreenfittest.cpp
+    tests/pinsnapresolvertest.cpp
     tests/preferencessettingstest.cpp
     tests/rulermeasurementtest.cpp
     tests/screenrulerwindowtest.cpp
@@ -410,6 +421,42 @@ if(BUILD_TESTING)
     )
     add_test(NAME PinWindow COMMAND PinWindowTest)
     set_tests_properties(PinWindow PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(PinSnapResolverTest
+        tests/pinsnapresolvertest.cpp
+    )
+    target_link_libraries(PinSnapResolverTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME PinSnapResolver COMMAND PinSnapResolverTest)
+    set_tests_properties(PinSnapResolver PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(PinScreenFitTest
+        tests/pinscreenfittest.cpp
+    )
+    target_link_libraries(PinScreenFitTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME PinScreenFit COMMAND PinScreenFitTest)
+    set_tests_properties(PinScreenFit PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(PinImageLimitsTest
+        tests/pinimagelimitstest.cpp
+    )
+    target_link_libraries(PinImageLimitsTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME PinImageLimits COMMAND PinImageLimitsTest)
+    set_tests_properties(PinImageLimits PROPERTIES
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 

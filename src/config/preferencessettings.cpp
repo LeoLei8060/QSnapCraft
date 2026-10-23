@@ -103,6 +103,14 @@ ApplicationPreferences loadApplicationPreferences(QSettings &settings)
     settings.beginGroup(QStringLiteral("Pin"));
     preferences.pin.showShadow = settings.value(QStringLiteral("show_shadow"), preferences.pin.showShadow).toBool();
     preferences.pin.stayOnTop = settings.value(QStringLiteral("stay_on_top"), preferences.pin.stayOnTop).toBool();
+    preferences.pin.recoveryLimit
+        = qBound(0, settings.value(QStringLiteral("recovery_limit"), preferences.pin.recoveryLimit).toInt(), 50);
+    preferences.pin.snapDistancePx
+        = qBound(0, settings.value(QStringLiteral("snap_distance_px"), preferences.pin.snapDistancePx).toInt(), 32);
+    preferences.pin.smoothScaling = settings.value(QStringLiteral("smooth_scaling"), preferences.pin.smoothScaling)
+                                        .toBool();
+    preferences.pin.zoomAtCursor = settings.value(QStringLiteral("zoom_at_cursor"), preferences.pin.zoomAtCursor)
+                                       .toBool();
     preferences.pin.textToImage.fontFamily
         = settings.value(QStringLiteral("text_font_family"), preferences.pin.textToImage.fontFamily).toString();
     preferences.pin.textToImage.fontSize
@@ -179,6 +187,10 @@ void saveApplicationPreferences(QSettings &settings, const ApplicationPreference
     settings.beginGroup(QStringLiteral("Pin"));
     settings.setValue(QStringLiteral("show_shadow"), preferences.pin.showShadow);
     settings.setValue(QStringLiteral("stay_on_top"), preferences.pin.stayOnTop);
+    settings.setValue(QStringLiteral("recovery_limit"), preferences.pin.recoveryLimit);
+    settings.setValue(QStringLiteral("snap_distance_px"), preferences.pin.snapDistancePx);
+    settings.setValue(QStringLiteral("smooth_scaling"), preferences.pin.smoothScaling);
+    settings.setValue(QStringLiteral("zoom_at_cursor"), preferences.pin.zoomAtCursor);
     settings.setValue(QStringLiteral("text_font_family"), preferences.pin.textToImage.fontFamily);
     settings.setValue(QStringLiteral("text_font_size"), preferences.pin.textToImage.fontSize);
     settings.setValue(QStringLiteral("text_max_width"), preferences.pin.textToImage.maxWidth);
