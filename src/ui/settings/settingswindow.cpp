@@ -1,11 +1,13 @@
 #include "settingswindow.h"
 
 #include "aboutsettings.h"
+#include "config/globalconfig.h"
 #include "controlsettings.h"
 #include "generalsettings.h"
-#include "config/globalconfig.h"
 #include "interfacesettings.h"
+#include "ocrsettings.h"
 #include "outputsettings.h"
+#include "pinsettings.h"
 #include "screenshotsettings.h"
 #include "ui/glyphicon.h"
 
@@ -68,6 +70,10 @@ void SettingsWindow::setupUi()
     m_outputSettings->setObjectName(QStringLiteral("page_Output"));
     m_interfaceSettings = new InterfaceSettings(this);
     m_interfaceSettings->setObjectName(QStringLiteral("page_CaptureBar"));
+    m_pinSettings = new PinSettings(this);
+    m_pinSettings->setObjectName(QStringLiteral("page_Pin"));
+    m_ocrSettings = new OcrSettings(this);
+    m_ocrSettings->setObjectName(QStringLiteral("page_OCR"));
     m_controlSettings = new ControlSettings(this);
     m_controlSettings->setObjectName(QStringLiteral("page_Hotkeys"));
     m_aboutSettings = new AboutSettings(this);
@@ -82,6 +88,8 @@ void SettingsWindow::setupUi()
                  {m_screenshotSettings, tr("截图"), GlyphIcon::kCaptureRegion},
                  {m_outputSettings, tr("输出"), GlyphIcon::kSave},
                  {m_interfaceSettings, tr("桌面工具条"), GlyphIcon::kOptions},
+                 {m_pinSettings, tr("贴图"), GlyphIcon::kPin},
+                 {m_ocrSettings, tr("OCR"), GlyphIcon::kOcr},
                  {m_controlSettings, tr("快捷键"), GlyphIcon::kActiveWindow},
                  {m_aboutSettings, tr("关于"), GlyphIcon::kAbout}};
 
@@ -145,7 +153,7 @@ void SettingsWindow::setupUi()
 
     connect(m_pageList, &QListWidget::currentRowChanged, m_pageStack, &QStackedWidget::setCurrentIndex);
     connect(m_pageList, &QListWidget::currentRowChanged, this, [this](int row) {
-        m_restorePageButton->setEnabled(row >= 0 && row < 5);
+        m_restorePageButton->setEnabled(row >= 0 && row < m_pageList->count() - 1);
     });
     connect(m_restorePageButton, &QPushButton::clicked, this, &SettingsWindow::onRestorePageClicked);
     connect(m_applyButton, &QPushButton::clicked, this, &SettingsWindow::onApplyClicked);
@@ -155,6 +163,8 @@ void SettingsWindow::setupUi()
     connect(m_screenshotSettings, &ScreenshotSettings::sigChanged, this, &SettingsWindow::onPageChanged);
     connect(m_outputSettings, &OutputSettings::sigChanged, this, &SettingsWindow::onPageChanged);
     connect(m_interfaceSettings, &InterfaceSettings::sigChanged, this, &SettingsWindow::onPageChanged);
+    connect(m_pinSettings, &PinSettings::sigChanged, this, &SettingsWindow::onPageChanged);
+    connect(m_ocrSettings, &OcrSettings::sigChanged, this, &SettingsWindow::onPageChanged);
     connect(m_controlSettings, &ControlSettings::sigChanged, this, &SettingsWindow::onPageChanged);
 
     m_pageList->setCurrentRow(0);
@@ -241,9 +251,15 @@ void SettingsWindow::onRestorePageClicked()
         m_interfaceSettings->restoreDefaults();
         break;
     case 4:
-        m_controlSettings->restoreDefaults();
+        m_pinSettings->restoreDefaults();
         break;
     case 5:
+        m_ocrSettings->restoreDefaults();
+        break;
+    case 6:
+        m_controlSettings->restoreDefaults();
+        break;
+    case 7:
         m_aboutSettings->restoreDefaults();
         break;
     default:
@@ -282,6 +298,12 @@ bool SettingsWindow::applyChanges()
         m_interfaceSettings->writePreferences(preferences);
     }
     if (m_dirtyPages.contains(4)) {
+        m_pinSettings->writePreferences(preferences);
+    }
+    if (m_dirtyPages.contains(5)) {
+        m_ocrSettings->writePreferences(preferences);
+    }
+    if (m_dirtyPages.contains(6)) {
         m_controlSettings->writePreferences(preferences);
     }
 
@@ -321,10 +343,16 @@ int SettingsWindow::pageIndex(const QWidget *page) const
         return 3;
     }
     if (page == m_controlSettings) {
+        return 6;
+    }
+    if (page == m_pinSettings) {
         return 4;
     }
-    if (page == m_aboutSettings) {
+    if (page == m_ocrSettings) {
         return 5;
+    }
+    if (page == m_aboutSettings) {
+        return 7;
     }
     return -1;
 }
@@ -337,6 +365,8 @@ void SettingsWindow::resetAllPages(const ApplicationPreferences &preferences)
     m_screenshotSettings->setPreferences(preferences);
     m_outputSettings->setPreferences(preferences);
     m_interfaceSettings->setPreferences(preferences);
+    m_pinSettings->setPreferences(preferences);
+    m_ocrSettings->setPreferences(preferences);
     m_controlSettings->setPreferences(preferences);
     m_aboutSettings->setPreferences(preferences);
     m_aboutSettings->setConfigPath(config_path);

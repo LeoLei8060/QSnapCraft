@@ -16,9 +16,11 @@ public:
     explicit SystemTray(QObject *parent = nullptr);
     ~SystemTray() override = default;
 
-    void show();
-    void closeContextMenu();
-    void setCaptureBarVisible(bool visible);
+    void   show();
+    void   closeContextMenu();
+    void   setCaptureBarVisible(bool visible);
+    void   setHotkeysEnabled(bool enabled);
+    void   showMessage(const QString &title, const QString &message);
     QMenu *contextMenu() const;
 
 signals:
@@ -30,9 +32,10 @@ private slots:
 
 private:
     QAction *addAction(ApplicationAction action, bool checkable = false);
-    void createTrayIcon();
+    void     createTrayIcon();
 
     std::unique_ptr<QSystemTrayIcon> m_trayIcon;
     std::unique_ptr<QMenu>           m_trayMenu;
     QAction                         *m_toggleCaptureBarAction{nullptr};
+    QAction                         *m_toggleHotkeysAction{nullptr};
 };

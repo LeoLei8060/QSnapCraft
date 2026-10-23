@@ -32,6 +32,19 @@ void SystemTray::setCaptureBarVisible(bool visible)
     }
 }
 
+void SystemTray::setHotkeysEnabled(bool enabled)
+{
+    if (m_toggleHotkeysAction) {
+        const QSignalBlocker blocker(m_toggleHotkeysAction);
+        m_toggleHotkeysAction->setChecked(enabled);
+    }
+}
+
+void SystemTray::showMessage(const QString &title, const QString &message)
+{
+    m_trayIcon->showMessage(title, message, QSystemTrayIcon::Warning, 5000);
+}
+
 QMenu *SystemTray::contextMenu() const
 {
     return m_trayMenu.get();
@@ -64,15 +77,21 @@ void SystemTray::createTrayIcon()
                                              "QMenu::item:disabled { color: #777777; }"
                                              "QMenu::separator { height: 1px; background: #444; margin: 4px 8px; }"));
 
+    addAction(ApplicationAction::kPaste);
     addAction(ApplicationAction::kSnip);
     addAction(ApplicationAction::kCaptureActiveWindow);
     addAction(ApplicationAction::kScrollSnip);
     addAction(ApplicationAction::kOcrSnip);
     m_trayMenu->addSeparator();
+    addAction(ApplicationAction::kHideAllImages);
+    addAction(ApplicationAction::kShowAllImages);
+    addAction(ApplicationAction::kRecoverImage);
+    m_trayMenu->addSeparator();
     addAction(ApplicationAction::kPickColor);
     addAction(ApplicationAction::kScreenRuler);
     m_trayMenu->addSeparator();
     m_toggleCaptureBarAction = addAction(ApplicationAction::kToggleCaptureBar, true);
+    m_toggleHotkeysAction = addAction(ApplicationAction::kToggleHotkeys, true);
     addAction(ApplicationAction::kPreferences);
     m_trayMenu->addSeparator();
     addAction(ApplicationAction::kAbout);
@@ -91,6 +110,8 @@ void SystemTray::onTrayIconActivated(QSystemTrayIcon::ActivationReason reason)
 {
     if (reason == QSystemTrayIcon::Trigger) {
         emit sigActionTriggered(ApplicationAction::kSnip);
+    } else if (reason == QSystemTrayIcon::MiddleClick) {
+        emit sigActionTriggered(ApplicationAction::kPaste);
     }
 }
 

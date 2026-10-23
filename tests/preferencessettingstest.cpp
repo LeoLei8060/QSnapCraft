@@ -19,7 +19,7 @@ void PreferencesSettingsTest::roundTripsApplicationPreferences()
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const QString path = directory.filePath(QStringLiteral("config.ini"));
-    QSettings settings(path, QSettings::IniFormat);
+    QSettings     settings(path, QSettings::IniFormat);
 
     ApplicationPreferences expected;
     expected.general.autoStart = false;
@@ -41,6 +41,8 @@ void PreferencesSettingsTest::roundTripsApplicationPreferences()
     QCOMPARE(actual.general.autoStart, expected.general.autoStart);
     QCOMPARE(actual.control.captureHotkey, expected.control.captureHotkey);
     QCOMPARE(actual.control.captureCopyHotkey, expected.control.captureCopyHotkey);
+    QCOMPARE(settings.value(QStringLiteral("Control/ClickThroughHotkey")).toString(), QStringLiteral("F4"));
+    QCOMPARE(settings.value(QStringLiteral("Snip/use_physical_selection_size")).toBool(), false);
     QCOMPARE(actual.captureBar.enabled, expected.captureBar.enabled);
     QCOMPARE(actual.captureBar.hotspotWidthPx, expected.captureBar.hotspotWidthPx);
     QCOMPARE(actual.capture.detectWindows, expected.capture.detectWindows);
@@ -74,8 +76,7 @@ void PreferencesSettingsTest::writesOutputSettingsToSnipGroup()
     QCOMPARE(settings.value(QStringLiteral("Snip/manual_save_path")).toString(), QStringLiteral("C:/Manual"));
     QCOMPARE(settings.value(QStringLiteral("Snip/quick_save_path")).toString(), QStringLiteral("C:/Quick"));
     QCOMPARE(settings.value(QStringLiteral("Snip/auto_save_path")).toString(), QStringLiteral("C:/Auto"));
-    QCOMPARE(settings.value(QStringLiteral("Snip/filename_pattern")).toString(),
-             QStringLiteral("Capture_$yyyy$MM$dd$"));
+    QCOMPARE(settings.value(QStringLiteral("Snip/filename_pattern")).toString(), QStringLiteral("Capture_$yyyy$MM$dd$"));
     QCOMPARE(settings.value(QStringLiteral("Snip/format")).toString(), QStringLiteral("PNG"));
     QVERIFY(!settings.contains(QStringLiteral("Output/FileNameFormat")));
 }
@@ -85,7 +86,7 @@ void PreferencesSettingsTest::preservesUnknownSettings()
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const QString path = directory.filePath(QStringLiteral("config.ini"));
-    QSettings settings(path, QSettings::IniFormat);
+    QSettings     settings(path, QSettings::IniFormat);
     settings.setValue(QStringLiteral("Other/FutureValue"), QStringLiteral("keep-me"));
 
     saveApplicationPreferences(settings, ApplicationPreferences{});

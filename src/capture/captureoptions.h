@@ -33,6 +33,7 @@ struct CaptureOptions
     bool                showBorderInMagnifier{true};
     bool                showAnchorsInMagnifier{true};
     bool                uppercaseHexColor{true};
+    bool                physicalSelectionUnits{false};
     bool                disableMouseScroll{false};
     bool                autoSave{false};
     bool                soundEnabled{false};
@@ -44,5 +45,6 @@ struct CaptureOptions
     QString             autoSavePath;
     QString             filenamePattern{QStringLiteral("QSnapCraft_$yyyy-MM-dd_HH-mm-ss$")};
     QString             imageFormat{QStringLiteral("PNG")};
+    QString             ocrLanguage;
     int                 jpegQuality{95};
 };

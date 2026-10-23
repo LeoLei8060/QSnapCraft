@@ -1,5 +1,5 @@
-#include "paint/paintscene.h"
 #include "ui/paintbar.h"
+#include "paint/paintscene.h"
 
 #include <QComboBox>
 #include <QImage>
@@ -23,6 +23,7 @@ private slots:
     void showsTwentyColorPaletteAtEnd();
     void keepsColorAfterTextProperties();
     void mosaicModesUseButtonsAndSlider();
+    void eraserModesUseExclusiveButtons();
     void mosaicBrushSliderControlsPenWidth();
     void externalPenWidthUpdatesMosaicSlider();
     void wheelChangesSize();
@@ -154,9 +155,7 @@ void PaintBarTest::showsTwentyColorPaletteAtEnd()
     QCoreApplication::processEvents();
 
     auto *colorGroup = bar.findChild<QWidget *>(QStringLiteral("container_ColorGroup"));
-    auto *palette = colorGroup
-                        ? colorGroup->findChild<QWidget *>(QStringLiteral("container_ColorPalette"))
-                        : nullptr;
+    auto *palette = colorGroup ? colorGroup->findChild<QWidget *>(QStringLiteral("container_ColorPalette")) : nullptr;
     auto *color = colorGroup ? colorGroup->findChild<QToolButton *>(QStringLiteral("btn_PaintColor")) : nullptr;
     QVERIFY(colorGroup);
     QVERIFY(palette);
@@ -265,6 +264,37 @@ void PaintBarTest::mosaicModesUseButtonsAndSlider()
     QCOMPARE(levelSpy.at(0).at(0).toInt(), 19);
 }
 
+void PaintBarTest::eraserModesUseExclusiveButtons()
+{
+    PaintBar bar;
+    bar.setCurrentTool(PaintTool::kEraser);
+    bar.show();
+    QCoreApplication::processEvents();
+
+    auto *brush = bar.findChild<QToolButton *>(QStringLiteral("btn_EraserBrush"));
+    auto *area = bar.findChild<QToolButton *>(QStringLiteral("btn_EraserArea"));
+    auto *fill = bar.findChild<QToolButton *>(QStringLiteral("btn_StrokeFill"));
+    QVERIFY(brush);
+    QVERIFY(area);
+    QVERIFY(fill);
+    QVERIFY(brush->isVisibleTo(&bar));
+    QVERIFY(area->isVisibleTo(&bar));
+    QVERIFY(!fill->isVisibleTo(&bar));
+    QVERIFY(brush->isChecked());
+    QVERIFY(!area->isChecked());
+
+    QSignalSpy filled_spy(&bar, &PaintBar::sigFilledChanged);
+    QTest::mouseClick(area, Qt::LeftButton);
+    QCOMPARE(filled_spy.count(), 1);
+    QVERIFY(filled_spy.at(0).at(0).toBool());
+    QVERIFY(!brush->isChecked());
+    QVERIFY(area->isChecked());
+
+    QTest::mouseClick(brush, Qt::LeftButton);
+    QCOMPARE(filled_spy.count(), 2);
+    QVERIFY(!filled_spy.at(1).at(0).toBool());
+}
+
 void PaintBarTest::mosaicBrushSliderControlsPenWidth()
 {
     PaintBar bar;
@@ -329,7 +359,7 @@ void PaintBarTest::wheelChangesSize()
     QSignalSpy size_spy(&bar, &PaintBar::sigPenWidthChanged);
 
     const QPointF local_position(size->rect().center());
-    QWheelEvent first_wheel(local_position,
+    QWheelEvent   first_wheel(local_position,
                             size->mapToGlobal(local_position.toPoint()),
                             QPoint(),
                             QPoint(0, 120),
@@ -365,12 +395,11 @@ void PaintBarTest::rendersToolbarLayouts()
     PaintBar bar;
     bar.show();
     QCoreApplication::processEvents();
-    for (const auto &entry :
-         {qMakePair(QStringLiteral("rectangle"), PaintTool::kRectangle),
-          qMakePair(QStringLiteral("arrow"), PaintTool::kArrow),
-          qMakePair(QStringLiteral("mosaic"), PaintTool::kMosaic),
-          qMakePair(QStringLiteral("marker"), PaintTool::kMarker),
-          qMakePair(QStringLiteral("text"), PaintTool::kText)}) {
+    for (const auto &entry : {qMakePair(QStringLiteral("rectangle"), PaintTool::kRectangle),
+                              qMakePair(QStringLiteral("arrow"), PaintTool::kArrow),
+                              qMakePair(QStringLiteral("mosaic"), PaintTool::kMosaic),
+                              qMakePair(QStringLiteral("marker"), PaintTool::kMarker),
+                              qMakePair(QStringLiteral("text"), PaintTool::kText)}) {
         bar.setCurrentTool(entry.second);
         QCoreApplication::processEvents();
         QImage image(bar.size() + QSize(16, 16), QImage::Format_ARGB32_Premultiplied);

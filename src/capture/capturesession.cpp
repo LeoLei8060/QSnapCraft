@@ -1,11 +1,17 @@
 #include "capturesession.h"
 
-#include "platform/windows/desktopcapture.h"
 #include "output/outputservice.h"
 #include "paint/paintscene.h"
+#include "platform/windows/desktopcapture.h"
+#include "platform/windows/foregroundwindow.h"
+#include "platform/windows/ocrengine.h"
+#include "platform/windows/shortcutmanager.h"
 #include "ui/captureoverlay.h"
+#include "ui/ocrdialog.h"
+#include "ui/scrollcaptureindicator.h"
 
 #include <QApplication>
+#include <QCursor>
 #include <QDebug>
 
 namespace {
@@ -15,11 +21,19 @@ void notifyOutput(const CaptureOptions &options)
         QApplication::beep();
     }
 }
+
+QPoint selectionGlobalPosition(const QRect &selection, const QRect &logical_bounds)
+{
+    return selection.topLeft() + logical_bounds.topLeft();
+}
 } // namespace
 
 CaptureSession::CaptureSession(QObject *parent)
     : QObject(parent)
-{}
+{
+    m_scrollTimer.setInterval(350);
+    connect(&m_scrollTimer, &QTimer::timeout, this, &CaptureSession::captureScrollFrame);
+}
 
 CaptureSession::~CaptureSession() = default;
 
@@ -64,6 +78,7 @@ void CaptureSession::cancel()
         m_overlay->paintScene()->clearAll();
         m_overlay->hide();
     }
+    stopScrollCapture();
     resetSession();
     emit sigCancelled();
 }
@@ -87,9 +102,136 @@ void CaptureSession::onSelectionConfirmed(const QRect &selection)
         finishWithIntent(m_request.intent, m_request.intent == CaptureIntent::kCopy);
         return;
     }
+    if (m_request.intent == CaptureIntent::kScroll) {
+        beginScrollCapture(m_overlay->currentSelection());
+        return;
+    }
 
     m_phase = CapturePhase::kAnnotating;
     m_overlay->enterAnnotating();
+    if (m_request.intent == CaptureIntent::kOcr && showOcrDialog()) {
+        const QRect         selection = m_overlay->currentSelection();
+        const CaptureResult result{selection,
+                                   selectionGlobalPosition(selection, m_frame.logicalBounds),
+                                   {},
+                                   CaptureIntent::kOcr};
+        m_overlay->paintScene()->clearAll();
+        m_overlay->hide();
+        resetSession();
+        emit sigFinished(result);
+    }
+}
+
+void CaptureSession::beginScrollCapture(const QRect &selection)
+{
+    if (!selection.isValid() || !m_overlay) {
+        fail(QStringLiteral("滚动截图选区无效。"));
+        return;
+    }
+
+    m_scrollSelection = selection;
+    m_scrollSelectionGlobal = selection.translated(m_frame.logicalBounds.topLeft());
+    QImage  first_frame;
+    QString error;
+    if (!renderCaptureSelection(m_frame, m_scrollSelectionGlobal, &first_frame, &error)) {
+        fail(error);
+        return;
+    }
+
+    m_scrollStitcher.reset(first_frame);
+    m_overlay->hide();
+    if (!m_scrollIndicator) {
+        m_scrollIndicator = std::make_unique<ScrollCaptureIndicator>();
+    }
+    m_scrollIndicator->setSelection(m_scrollSelectionGlobal);
+    m_scrollIndicator->setCapturedHeight(first_frame.height());
+    m_phase = CapturePhase::kScrolling;
+    m_scrollActive = true;
+
+    if (!ShortcutManager::instance()->registerHotkey(QStringLiteral("Enter"), ShortcutManager::scrollFinishKey)) {
+        emit sigOperationFailed(QStringLiteral("Enter 全局热键注册失败，可使用截图工具条完成滚动截图。"));
+    }
+    focusWindowUnderPoint(QCursor::pos());
+    m_scrollTimer.start();
+}
+
+void CaptureSession::captureScrollFrame()
+{
+    if (!m_scrollActive) {
+        return;
+    }
+
+    const CaptureFrame live_frame = captureVirtualDesktop(false);
+    if (!live_frame.isValid()) {
+        return;
+    }
+
+    QImage frame_image;
+    if (!renderCaptureSelection(live_frame, m_scrollSelectionGlobal, &frame_image)) {
+        return;
+    }
+    int added_rows = 0;
+    m_scrollStitcher.appendFrame(frame_image, &added_rows);
+    if (m_scrollIndicator) {
+        m_scrollIndicator->setCapturedHeight(m_scrollStitcher.image().height());
+    }
+}
+
+void CaptureSession::finishScrollCapture()
+{
+    if (!m_scrollActive) {
+        return;
+    }
+
+    captureScrollFrame();
+    const QImage image = m_scrollStitcher.image();
+    if (image.isNull()) {
+        emit sigOperationFailed(QStringLiteral("滚动截图没有得到有效图像。"));
+        return;
+    }
+
+    QString error;
+    if (!OutputService::copyImage(image, &error)) {
+        emit sigOperationFailed(error);
+        return;
+    }
+    if (!m_request.outputPath.isEmpty()
+        && !OutputService::saveImage(image, m_request.outputPath, m_options.imageFormat, m_options.jpegQuality, &error)) {
+        emit sigOperationFailed(error);
+        return;
+    }
+    if (m_options.autoSave) {
+        QString       auto_save_error;
+        const QString path = OutputService::saveSnapshot(image,
+                                                         m_options.autoSavePath,
+                                                         m_options.filenamePattern,
+                                                         m_options.imageFormat,
+                                                         m_options.jpegQuality,
+                                                         &auto_save_error);
+        if (path.isEmpty()) {
+            qWarning() << auto_save_error;
+        }
+    }
+
+    const CaptureResult result{m_scrollSelection, m_scrollSelectionGlobal.topLeft(), image, CaptureIntent::kScroll};
+    m_overlay->recordSelectionForHistory();
+    notifyOutput(m_options);
+    stopScrollCapture();
+    resetSession();
+    emit sigFinished(result);
+}
+
+void CaptureSession::stopScrollCapture()
+{
+    if (!m_scrollActive && !m_scrollTimer.isActive()) {
+        return;
+    }
+    m_scrollActive = false;
+    m_scrollTimer.stop();
+    ShortcutManager::instance()->unregisterHotkey(ShortcutManager::scrollFinishKey);
+    if (m_scrollIndicator) {
+        m_scrollIndicator->hide();
+    }
 }
 
 void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
@@ -114,11 +256,16 @@ void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
         if (closeAfter) {
             finishWithIntent(CaptureIntent::kPin, false);
         } else {
-            emit sigPinned(CaptureResult{m_overlay->currentSelection(),
-                                         m_frame.logicalBounds.topLeft(),
-                                         m_overlay->renderSelection(),
-                                         CaptureIntent::kPin});
+            const QRect         selection = m_overlay->currentSelection();
+            const CaptureResult result{selection,
+                                       selectionGlobalPosition(selection, m_frame.logicalBounds),
+                                       m_overlay->renderSelection(),
+                                       CaptureIntent::kPin};
+            emit                sigPinned(result);
         }
+        break;
+    case CaptureCommand::kOcr:
+        showOcrDialog();
         break;
     case CaptureCommand::kSave: {
         const QImage image = m_overlay->renderSelection();
@@ -139,7 +286,7 @@ void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
             m_overlay->recordSelectionForHistory();
             m_phase = CapturePhase::kFinishing;
             const CaptureResult result{m_overlay->currentSelection(),
-                                       m_frame.logicalBounds.topLeft(),
+                                       selectionGlobalPosition(m_overlay->currentSelection(), m_frame.logicalBounds),
                                        image,
                                        CaptureIntent::kAnnotate};
             m_overlay->paintScene()->clearAll();
@@ -162,7 +309,7 @@ void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
             m_overlay->recordSelectionForHistory();
             m_phase = CapturePhase::kFinishing;
             const CaptureResult result{m_overlay->currentSelection(),
-                                       m_frame.logicalBounds.topLeft(),
+                                       selectionGlobalPosition(m_overlay->currentSelection(), m_frame.logicalBounds),
                                        image,
                                        CaptureIntent::kAnnotate};
             m_overlay->paintScene()->clearAll();
@@ -183,6 +330,19 @@ void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
 void CaptureSession::onCancelRequested()
 {
     cancel();
+}
+
+bool CaptureSession::showOcrDialog()
+{
+    const QImage               image = m_overlay->renderSelection();
+    const OcrRecognitionResult result = recognizeImageText(image, m_options.ocrLanguage);
+    if (!result.success) {
+        emit sigOperationFailed(result.error);
+        return false;
+    }
+    OcrDialog dialog(result.text, m_overlay.get());
+    dialog.exec();
+    return true;
 }
 
 void CaptureSession::finishWithIntent(CaptureIntent intent, bool copyImage)
@@ -229,13 +389,14 @@ void CaptureSession::finishWithIntent(CaptureIntent intent, bool copyImage)
     m_overlay->recordSelectionForHistory();
     m_overlay->paintScene()->clearAll();
     m_overlay->hide();
-    const CaptureResult result{selection, m_frame.logicalBounds.topLeft(), image, intent};
+    const CaptureResult result{selection, selectionGlobalPosition(selection, m_frame.logicalBounds), image, intent};
     resetSession();
     emit sigFinished(result);
 }
 
 void CaptureSession::resetSession()
 {
+    stopScrollCapture();
     m_phase = CapturePhase::kIdle;
     m_request = {};
     m_frame = {};

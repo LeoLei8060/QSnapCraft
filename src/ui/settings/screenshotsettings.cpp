@@ -13,10 +13,7 @@
 #include <QVBoxLayout>
 
 namespace {
-QCheckBox *addCheckOption(QVBoxLayout  *layout,
-                          QWidget      *parent,
-                          const QString &text,
-                          const QString &objectName)
+QCheckBox *addCheckOption(QVBoxLayout *layout, QWidget *parent, const QString &text, const QString &objectName)
 {
     auto *checkBox = new QCheckBox(text, parent);
     checkBox->setObjectName(objectName);
@@ -35,24 +32,39 @@ ScreenshotSettings::ScreenshotSettings(QWidget *parent)
 
     auto *detectionGroup = new QGroupBox(tr("目标检测"), this);
     auto *detectionLayout = new QVBoxLayout(detectionGroup);
-    m_detectWindows
-        = addCheckOption(detectionLayout, detectionGroup, tr("自动检测窗口"), QStringLiteral("check_DetectWindows"));
+    m_detectWindows = addCheckOption(detectionLayout,
+                                     detectionGroup,
+                                     tr("自动检测窗口"),
+                                     QStringLiteral("check_DetectWindows"));
     m_detectUiElements = addCheckOption(detectionLayout,
                                         detectionGroup,
                                         tr("自动检测窗口内的 UI 元素"),
                                         QStringLiteral("check_DetectUiElements"));
-    m_captureCursor
-        = addCheckOption(detectionLayout, detectionGroup, tr("截图包含鼠标光标"), QStringLiteral("check_CaptureCursor"));
+    m_captureCursor = addCheckOption(detectionLayout,
+                                     detectionGroup,
+                                     tr("截图包含鼠标光标"),
+                                     QStringLiteral("check_CaptureCursor"));
+    m_neverCaptureCursor = addCheckOption(detectionLayout,
+                                          detectionGroup,
+                                          tr("始终不捕获鼠标光标"),
+                                          QStringLiteral("check_NeverCaptureCursor"));
     pageLayout->addWidget(detectionGroup);
 
     auto *selectionGroup = new QGroupBox(tr("选区辅助"), this);
     auto *selectionLayout = new QVBoxLayout(selectionGroup);
-    m_showAnchors
-        = addCheckOption(selectionLayout, selectionGroup, tr("显示八向控制点"), QStringLiteral("check_ShowAnchors"));
-    m_showTips
-        = addCheckOption(selectionLayout, selectionGroup, tr("显示快捷键提示"), QStringLiteral("check_ShowTips"));
-    m_autoCrossLines
-        = addCheckOption(selectionLayout, selectionGroup, tr("自动显示十字线"), QStringLiteral("check_AutoCrossLines"));
+    m_showAnchors = addCheckOption(selectionLayout,
+                                   selectionGroup,
+                                   tr("显示八向控制点"),
+                                   QStringLiteral("check_ShowAnchors"));
+    m_showTips = addCheckOption(selectionLayout, selectionGroup, tr("显示快捷键提示"), QStringLiteral("check_ShowTips"));
+    m_autoCrossLines = addCheckOption(selectionLayout,
+                                      selectionGroup,
+                                      tr("自动显示十字线"),
+                                      QStringLiteral("check_AutoCrossLines"));
+    m_disableMouseScroll = addCheckOption(selectionLayout,
+                                          selectionGroup,
+                                          tr("禁用滚轮调整标注笔宽"),
+                                          QStringLiteral("check_DisableMouseScroll"));
     m_hide1x1 = addCheckOption(selectionLayout,
                                selectionGroup,
                                tr("隐藏 1×1 选区边框"),
@@ -82,8 +94,10 @@ ScreenshotSettings::ScreenshotSettings(QWidget *parent)
 
     auto *magnifierGroup = new QGroupBox(tr("放大镜"), this);
     auto *magnifierLayout = new QVBoxLayout(magnifierGroup);
-    m_showMagnifier
-        = addCheckOption(magnifierLayout, magnifierGroup, tr("显示放大镜"), QStringLiteral("check_ShowMagnifier"));
+    m_showMagnifier = addCheckOption(magnifierLayout,
+                                     magnifierGroup,
+                                     tr("显示放大镜"),
+                                     QStringLiteral("check_ShowMagnifier"));
     m_magnifierMask = addCheckOption(magnifierLayout,
                                      magnifierGroup,
                                      tr("显示当前像素遮罩"),
@@ -96,6 +110,14 @@ ScreenshotSettings::ScreenshotSettings(QWidget *parent)
                                         magnifierGroup,
                                         tr("显示控制点"),
                                         QStringLiteral("check_MagnifierAnchors"));
+    m_uppercaseHexColor = addCheckOption(magnifierLayout,
+                                         magnifierGroup,
+                                         tr("HEX 颜色值使用大写"),
+                                         QStringLiteral("check_UppercaseHexColor"));
+    m_physicalSelectionUnits = addCheckOption(selectionLayout,
+                                              selectionGroup,
+                                              tr("尺寸显示使用物理像素"),
+                                              QStringLiteral("check_PhysicalSelectionSize"));
     pageLayout->addWidget(magnifierGroup);
 
     auto *confirmationGroup = new QGroupBox(tr("确认与退出"), this);
@@ -139,8 +161,8 @@ ScreenshotSettings::ScreenshotSettings(QWidget *parent)
     m_middleClickExit->setObjectName(QStringLiteral("check_MiddleClickExit"));
 
     const QStringList gestureLabels = {tr("回车键："), tr("双击："), tr("中键单击：")};
-    QComboBox *const    gestureCombos[] = {m_enterAction, m_doubleClickAction, m_middleClickAction};
-    QCheckBox *const    gestureChecks[] = {m_enterExit, m_doubleClickExit, m_middleClickExit};
+    QComboBox *const  gestureCombos[] = {m_enterAction, m_doubleClickAction, m_middleClickAction};
+    QCheckBox *const  gestureChecks[] = {m_enterExit, m_doubleClickExit, m_middleClickExit};
     for (int index = 0; index < 3; ++index) {
         gestureLayout->addWidget(new QLabel(gestureLabels.at(index), gestureGroup), index, 0);
         gestureLayout->addWidget(gestureCombos[index], index, 1);
@@ -160,10 +182,14 @@ ScreenshotSettings::ScreenshotSettings(QWidget *parent)
                                  m_showTips,
                                  m_autoCrossLines,
                                  m_captureCursor,
+                                 m_neverCaptureCursor,
+                                 m_disableMouseScroll,
                                  m_showMagnifier,
                                  m_magnifierMask,
                                  m_magnifierBorder,
                                  m_magnifierAnchors,
+                                 m_uppercaseHexColor,
+                                 m_physicalSelectionUnits,
                                  m_confirmOnEscape,
                                  m_abortOnFocusOut,
                                  m_hide1x1,
@@ -196,10 +222,14 @@ void ScreenshotSettings::setPreferences(const ApplicationPreferences &preference
     const QSignalBlocker outsideBlocker(m_drawOutsideArea);
     const QSignalBlocker historyBlocker(m_loopHistory);
     const QSignalBlocker cursorBlocker(m_captureCursor);
+    const QSignalBlocker neverCaptureCursorBlocker(m_neverCaptureCursor);
+    const QSignalBlocker mouseScrollBlocker(m_disableMouseScroll);
     const QSignalBlocker magnifierBlocker(m_showMagnifier);
     const QSignalBlocker magnifierMaskBlocker(m_magnifierMask);
     const QSignalBlocker magnifierBorderBlocker(m_magnifierBorder);
     const QSignalBlocker magnifierAnchorsBlocker(m_magnifierAnchors);
+    const QSignalBlocker hexColorBlocker(m_uppercaseHexColor);
+    const QSignalBlocker physicalUnitsBlocker(m_physicalSelectionUnits);
     const QSignalBlocker confirmBlocker(m_confirmOnEscape);
     const QSignalBlocker focusBlocker(m_abortOnFocusOut);
     const QSignalBlocker maxHistoryBlocker(m_maxHistoryAreas);
@@ -214,21 +244,21 @@ void ScreenshotSettings::setPreferences(const ApplicationPreferences &preference
     m_drawOutsideArea->setChecked(options.drawOutsideArea);
     m_loopHistory->setChecked(options.loopHistoryAreas);
     m_captureCursor->setChecked(options.captureCursor);
+    m_neverCaptureCursor->setChecked(options.neverCaptureCursor);
+    m_disableMouseScroll->setChecked(options.disableMouseScroll);
     m_showMagnifier->setChecked(options.showMagnifier);
     m_magnifierMask->setChecked(options.showMaskInMagnifier);
     m_magnifierBorder->setChecked(options.showBorderInMagnifier);
     m_magnifierAnchors->setChecked(options.showAnchorsInMagnifier);
+    m_uppercaseHexColor->setChecked(options.uppercaseHexColor);
+    m_physicalSelectionUnits->setChecked(options.physicalSelectionUnits);
     m_confirmOnEscape->setChecked(options.askForConfirmOnEscape);
     m_abortOnFocusOut->setChecked(options.abortOnFocusOut);
     m_maxHistoryAreas->setValue(options.maxHistoryAreas);
     m_borderWidth->setValue(options.borderWidth);
     m_anchorColor = options.anchorBorderColor;
 
-    setOutputGesture(m_enterAction,
-                     m_enterExit,
-                     options.enterKeyOutput,
-                     options.enterAction,
-                     options.enterExit);
+    setOutputGesture(m_enterAction, m_enterExit, options.enterKeyOutput, options.enterAction, options.enterExit);
     setOutputGesture(m_doubleClickAction,
                      m_doubleClickExit,
                      options.doubleClickOutput,
@@ -256,10 +286,14 @@ void ScreenshotSettings::writePreferences(ApplicationPreferences &preferences) c
     options.drawOutsideArea = m_drawOutsideArea->isChecked();
     options.loopHistoryAreas = m_loopHistory->isChecked();
     options.captureCursor = m_captureCursor->isChecked();
+    options.neverCaptureCursor = m_neverCaptureCursor->isChecked();
+    options.disableMouseScroll = m_disableMouseScroll->isChecked();
     options.showMagnifier = m_showMagnifier->isChecked();
     options.showMaskInMagnifier = m_magnifierMask->isChecked();
     options.showBorderInMagnifier = m_magnifierBorder->isChecked();
     options.showAnchorsInMagnifier = m_magnifierAnchors->isChecked();
+    options.uppercaseHexColor = m_uppercaseHexColor->isChecked();
+    options.physicalSelectionUnits = m_physicalSelectionUnits->isChecked();
     options.askForConfirmOnEscape = m_confirmOnEscape->isChecked();
     options.abortOnFocusOut = m_abortOnFocusOut->isChecked();
     options.maxHistoryAreas = m_maxHistoryAreas->value();
@@ -269,12 +303,12 @@ void ScreenshotSettings::writePreferences(ApplicationPreferences &preferences) c
     options.enterKeyOutput = m_enterAction->currentData().toInt() != static_cast<int>(CaptureOutputAction::kNone);
     options.enterAction = static_cast<CaptureOutputAction>(m_enterAction->currentData().toInt());
     options.enterExit = m_enterExit->isChecked();
-    options.doubleClickOutput
-        = m_doubleClickAction->currentData().toInt() != static_cast<int>(CaptureOutputAction::kNone);
+    options.doubleClickOutput = m_doubleClickAction->currentData().toInt()
+                                != static_cast<int>(CaptureOutputAction::kNone);
     options.doubleClickAction = static_cast<CaptureOutputAction>(m_doubleClickAction->currentData().toInt());
     options.doubleClickExit = m_doubleClickExit->isChecked();
-    options.middleClickOutput
-        = m_middleClickAction->currentData().toInt() != static_cast<int>(CaptureOutputAction::kNone);
+    options.middleClickOutput = m_middleClickAction->currentData().toInt()
+                                != static_cast<int>(CaptureOutputAction::kNone);
     options.middleClickAction = static_cast<CaptureOutputAction>(m_middleClickAction->currentData().toInt());
     options.middleClickExit = m_middleClickExit->isChecked();
 }
@@ -297,15 +331,12 @@ QComboBox *ScreenshotSettings::createOutputActionCombo(const QString &objectName
     return combo;
 }
 
-void ScreenshotSettings::setOutputGesture(QComboBox          *actionCombo,
-                                          QCheckBox          *exitCheck,
-                                          bool                enabled,
-                                          CaptureOutputAction action,
-                                          bool                exit)
+void ScreenshotSettings::setOutputGesture(
+    QComboBox *actionCombo, QCheckBox *exitCheck, bool enabled, CaptureOutputAction action, bool exit)
 {
     const QSignalBlocker actionBlocker(actionCombo);
     const QSignalBlocker exitBlocker(exitCheck);
-    const int           action_index = enabled ? actionCombo->findData(static_cast<int>(action)) : 0;
+    const int            action_index = enabled ? actionCombo->findData(static_cast<int>(action)) : 0;
     actionCombo->setCurrentIndex(action_index >= 0 ? action_index : 0);
     exitCheck->setChecked(exit);
 }
@@ -332,8 +363,7 @@ void ScreenshotSettings::updateMagnifierState()
 void ScreenshotSettings::updateColorButton()
 {
     m_anchorColorButton->setText(m_anchorColor.name(QColor::HexArgb));
-    m_anchorColorButton->setStyleSheet(
-        QStringLiteral("QPushButton { text-align: left; padding-left: 12px;"
-                       " border-left: 18px solid %1; }")
-            .arg(m_anchorColor.name(QColor::HexRgb)));
+    m_anchorColorButton->setStyleSheet(QStringLiteral("QPushButton { text-align: left; padding-left: 12px;"
+                                                      " border-left: 18px solid %1; }")
+                                           .arg(m_anchorColor.name(QColor::HexRgb)));
 }

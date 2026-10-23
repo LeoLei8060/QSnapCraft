@@ -47,6 +47,9 @@ CaptureOverlay::CaptureOverlay(QWidget *parent)
     m_paintBar->hide();
     connect(m_paintBar, &PaintBar::sigToolChanged, this, [this](PaintTool tool) {
         paintScene()->setTool(tool);
+        if (tool == PaintTool::kEraser) {
+            paintScene()->setFilled(false);
+        }
         m_paintBar->setCurrentColor(paintScene()->color());
         updatePaintBarPosition();
         updateInteractionCursor();
@@ -86,13 +89,33 @@ CaptureOverlay::CaptureOverlay(QWidget *parent)
 
 CaptureOverlay::~CaptureOverlay() = default;
 
+bool CaptureOverlay::event(QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress && m_phase == CapturePhase::kAnnotating) {
+        auto      *key_event = static_cast<QKeyEvent *>(event);
+        auto      *text = dynamic_cast<QGraphicsTextItem *>(paintScene()->focusItem());
+        const bool editing_text = text != nullptr && text->textInteractionFlags().testFlag(Qt::TextEditorInteraction);
+        if (key_event->key() == Qt::Key_Tab && !editing_text) {
+            m_paintBar->setVisible(!m_paintBar->isVisible());
+            if (m_paintBar->isVisible()) {
+                updatePaintBarPosition();
+                m_paintBar->raise();
+            }
+            updateInteractionCursor();
+            return true;
+        }
+    }
+    return PaintView::event(event);
+}
+
 void CaptureOverlay::begin(const CaptureFrame &frame, const CaptureOptions &options, CaptureRequest request)
 {
     m_frame = frame;
     m_options = options;
     m_request = std::move(request);
-    m_backgroundPixmap = QPixmap::fromImage(frame.logicalComposite);
+    m_frame.cursorIncluded = options.captureCursor && !options.neverCaptureCursor && !m_frame.cursorImage.isNull();
     m_magnifierVisible = options.showMagnifier;
+    m_physicalSizeUnit = options.physicalSelectionUnits;
     m_maskVisible = true;
     m_magnifier.setDecorations(options.showMaskInMagnifier,
                                options.showBorderInMagnifier,
@@ -101,7 +124,7 @@ void CaptureOverlay::begin(const CaptureFrame &frame, const CaptureOptions &opti
     m_history.setLoop(options.loopHistoryAreas);
 
     setGeometry(frame.logicalBounds);
-    setBackgroundImage(frame.logicalComposite);
+    updateCapturedCursorPreview();
     m_pointerPosition = QCursor::pos() - frame.logicalBounds.topLeft();
     m_pendingHoverPosition = m_pointerPosition;
     paintScene()->clearAll();
@@ -125,6 +148,24 @@ void CaptureOverlay::begin(const CaptureFrame &frame, const CaptureOptions &opti
     setFocus();
     m_hoverTimer.start();
     applyStartMode();
+}
+
+bool CaptureOverlay::capturedCursorEnabled() const
+{
+    return m_frame.cursorIncluded;
+}
+
+void CaptureOverlay::setCapturedCursorEnabled(bool enabled)
+{
+    if (enabled && (!m_options.captureCursor || m_options.neverCaptureCursor || m_frame.cursorImage.isNull())) {
+        return;
+    }
+    if (m_frame.cursorIncluded == enabled) {
+        return;
+    }
+
+    m_frame.cursorIncluded = enabled;
+    updateCapturedCursorPreview();
 }
 
 void CaptureOverlay::setPhase(CapturePhase phase)
@@ -491,6 +532,16 @@ void CaptureOverlay::keyPressEvent(QKeyEvent *event)
         viewport()->update();
         return;
     }
+    if (event->key() == Qt::Key_U && event->modifiers() == Qt::NoModifier) {
+        m_physicalSizeUnit = !m_physicalSizeUnit;
+        viewport()->update();
+        return;
+    }
+    if (event->key() == Qt::Key_P && event->modifiers() == Qt::NoModifier) {
+        setCapturedCursorEnabled(!capturedCursorEnabled());
+        viewport()->update();
+        return;
+    }
     if (m_phase == CapturePhase::kSelecting && (event->key() == Qt::Key_Comma || event->key() == Qt::Key_Period)) {
         const bool changed = event->key() == Qt::Key_Period ? m_history.next() : m_history.previous();
         if (changed) {
@@ -533,6 +584,15 @@ void CaptureOverlay::keyPressEvent(QKeyEvent *event)
         return;
     }
     if (m_phase == CapturePhase::kAnnotating) {
+        if (event->modifiers() == Qt::NoModifier
+            && (event->key() == Qt::Key_1 || event->key() == Qt::Key_2 || event->key() == Qt::Key_BracketLeft
+                || event->key() == Qt::Key_BracketRight)) {
+            const int direction = event->key() == Qt::Key_1 || event->key() == Qt::Key_BracketLeft ? -1 : 1;
+            paintScene()->adjustPenWidth(direction);
+            viewport()->update();
+            return;
+        }
+
         const bool control = event->modifiers().testFlag(Qt::ControlModifier);
         PaintTool  shortcutTool = PaintTool::kSelect;
         bool       hasToolShortcut = true;
@@ -588,6 +648,10 @@ void CaptureOverlay::keyPressEvent(QKeyEvent *event)
         }
         if (event->matches(QKeySequence::Paste)) {
             paintScene()->pasteCopied();
+            return;
+        }
+        if (event->modifiers().testFlag(Qt::ControlModifier) && event->key() == Qt::Key_O) {
+            emit sigCommandRequested(CaptureCommand::kOcr, false);
             return;
         }
         if (event->modifiers().testFlag(Qt::ControlModifier) && event->modifiers().testFlag(Qt::ShiftModifier)
@@ -698,15 +762,15 @@ void CaptureOverlay::drawSizeLabel(QPainter &painter)
     if (!selection.isValid()) {
         return;
     }
-    const QString text = QStringLiteral("%1 × %2").arg(selection.width()).arg(selection.height());
+    const QString text = selectionSizeLabel();
     QFont         font = painter.font();
     font.setPixelSize(12);
     painter.setFont(font);
     const QSize textSize = painter.fontMetrics().size(Qt::TextSingleLine, text);
     QRect       label(selection.left(),
-                      selection.top() - textSize.height() - 10,
-                      textSize.width() + 16,
-                      textSize.height() + 8);
+                selection.top() - textSize.height() - 10,
+                textSize.width() + 16,
+                textSize.height() + 8);
     if (label.top() < 0) {
         label.moveTop(selection.top() + 4);
     }
@@ -715,6 +779,21 @@ void CaptureOverlay::drawSizeLabel(QPainter &painter)
     painter.drawRoundedRect(label, 4, 4);
     painter.setPen(Qt::white);
     painter.drawText(label, Qt::AlignCenter, text);
+}
+
+QString CaptureOverlay::selectionSizeLabel() const
+{
+    const QRect selection = m_selectionState.current();
+    if (!selection.isValid()) {
+        return {};
+    }
+
+    if (!m_physicalSizeUnit) {
+        return QStringLiteral("%1 × %2 DIP").arg(selection.width()).arg(selection.height());
+    }
+
+    const qreal scale = captureSelectionScale(m_frame, selection);
+    return QStringLiteral("%1 × %2 px").arg(qRound(selection.width() * scale)).arg(qRound(selection.height() * scale));
 }
 
 void CaptureOverlay::drawMagnifier(QPainter &painter)
@@ -730,13 +809,33 @@ void CaptureOverlay::drawTips(QPainter &painter)
     if (m_phase != CapturePhase::kSelecting) {
         return;
     }
-    const QString text = QStringLiteral("拖动框选 · F 全屏 · Esc 取消");
+    const QString text = QStringLiteral("拖动框选 · F 全屏 · P 光标 · Esc 取消");
     QRect         rect(12, 12, painter.fontMetrics().horizontalAdvance(text) + 20, 28);
     painter.setPen(Qt::NoPen);
     painter.setBrush(QColor(0, 0, 0, 170));
     painter.drawRoundedRect(rect, 6, 6);
     painter.setPen(Qt::white);
     painter.drawText(rect, Qt::AlignCenter, text);
+}
+
+void CaptureOverlay::updateCapturedCursorPreview()
+{
+    QImage background = m_frame.logicalComposite;
+    if (m_frame.cursorIncluded && !m_frame.cursorImage.isNull()) {
+        const qreal   cursor_scale = m_frame.cursorScale > 0.0 ? m_frame.cursorScale : 1.0;
+        const QPointF cursor_point = QPointF(m_frame.cursorGlobalPosition - m_frame.logicalBounds.topLeft());
+        const QPointF hotspot(m_frame.cursorHotspot.x() / cursor_scale, m_frame.cursorHotspot.y() / cursor_scale);
+        const QSizeF  cursor_size(m_frame.cursorImage.width() / cursor_scale,
+                                 m_frame.cursorImage.height() / cursor_scale);
+        {
+            QPainter painter(&background);
+            painter.drawImage(QRectF(cursor_point - hotspot, cursor_size), m_frame.cursorImage);
+        }
+    }
+
+    m_backgroundPixmap = QPixmap::fromImage(background);
+    setBackgroundImage(background);
+    viewport()->update();
 }
 
 SelectionEdges CaptureOverlay::selectionEdgesAt(const QPoint &position) const
@@ -797,7 +896,7 @@ void CaptureOverlay::updateInteractionCursor()
         return;
     }
 
-    const QRect selection = m_selectionState.current();
+    const QRect     selection = m_selectionState.current();
     const PaintTool tool = paintScene()->tool();
     if (selection.contains(m_pointerPosition)) {
         switch (paintScene()->itemHandleAt(m_pointerPosition)) {
@@ -845,8 +944,7 @@ void CaptureOverlay::updateInteractionCursor()
             const bool top = edge.testFlag(SelectionEdge::kTop);
             const bool bottom = edge.testFlag(SelectionEdge::kBottom);
             if ((left || right) && (top || bottom)) {
-                viewport()->setCursor((left && top) || (right && bottom) ? Qt::SizeFDiagCursor
-                                                                        : Qt::SizeBDiagCursor);
+                viewport()->setCursor((left && top) || (right && bottom) ? Qt::SizeFDiagCursor : Qt::SizeBDiagCursor);
             } else if (left || right) {
                 viewport()->setCursor(Qt::SizeHorCursor);
             } else {
@@ -859,13 +957,12 @@ void CaptureOverlay::updateInteractionCursor()
     }
 
     const SelectionEdges outside_edges = selectionEdgesOutsideAt(m_pointerPosition);
-    const bool left = outside_edges.testFlag(SelectionEdge::kLeft);
-    const bool right = outside_edges.testFlag(SelectionEdge::kRight);
-    const bool top = outside_edges.testFlag(SelectionEdge::kTop);
-    const bool bottom = outside_edges.testFlag(SelectionEdge::kBottom);
+    const bool           left = outside_edges.testFlag(SelectionEdge::kLeft);
+    const bool           right = outside_edges.testFlag(SelectionEdge::kRight);
+    const bool           top = outside_edges.testFlag(SelectionEdge::kTop);
+    const bool           bottom = outside_edges.testFlag(SelectionEdge::kBottom);
     if ((left || right) && (top || bottom)) {
-        viewport()->setCursor((left && top) || (right && bottom) ? Qt::SizeFDiagCursor
-                                                                : Qt::SizeBDiagCursor);
+        viewport()->setCursor((left && top) || (right && bottom) ? Qt::SizeFDiagCursor : Qt::SizeBDiagCursor);
     } else if (left || right) {
         viewport()->setCursor(Qt::SizeHorCursor);
     } else if (top || bottom) {

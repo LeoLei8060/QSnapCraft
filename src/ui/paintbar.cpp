@@ -66,7 +66,7 @@ QToolButton *createIconButton(GlyphIcon glyph, const QString &toolTip, QWidget *
 
 QIcon createSizeDotIcon(qreal size, bool is_text)
 {
-    QIcon icon;
+    QIcon       icon;
     const qreal radius = is_text ? qBound<qreal>(2.5, 2.5 + (size - 8.0) / 18.0, 9.0)
                                  : qBound<qreal>(2.0, 2.0 + size * 0.45, 10.0);
     for (const int icon_size : {16, 20, 24, 32}) {
@@ -89,26 +89,13 @@ std::array<int, 12> fontSizeSteps()
 
 std::array<QColor, 20> paletteColors()
 {
-    return {QColor(QStringLiteral("#000000")),
-            QColor(QStringLiteral("#7F7F7F")),
-            QColor(QStringLiteral("#880015")),
-            QColor(QStringLiteral("#ED1C24")),
-            QColor(QStringLiteral("#FF7F27")),
-            QColor(QStringLiteral("#FFF200")),
-            QColor(QStringLiteral("#22B14C")),
-            QColor(QStringLiteral("#00A2E8")),
-            QColor(QStringLiteral("#3F48CC")),
-            QColor(QStringLiteral("#A349A4")),
-            QColor(QStringLiteral("#FFFFFF")),
-            QColor(QStringLiteral("#C3C3C3")),
-            QColor(QStringLiteral("#B97A57")),
-            QColor(QStringLiteral("#FFAEC9")),
-            QColor(QStringLiteral("#FFC90E")),
-            QColor(QStringLiteral("#EFE4B0")),
-            QColor(QStringLiteral("#B5E61D")),
-            QColor(QStringLiteral("#99D9EA")),
-            QColor(QStringLiteral("#7092BE")),
-            QColor(QStringLiteral("#C8BFE7"))};
+    return {QColor(QStringLiteral("#000000")), QColor(QStringLiteral("#7F7F7F")), QColor(QStringLiteral("#880015")),
+            QColor(QStringLiteral("#ED1C24")), QColor(QStringLiteral("#FF7F27")), QColor(QStringLiteral("#FFF200")),
+            QColor(QStringLiteral("#22B14C")), QColor(QStringLiteral("#00A2E8")), QColor(QStringLiteral("#3F48CC")),
+            QColor(QStringLiteral("#A349A4")), QColor(QStringLiteral("#FFFFFF")), QColor(QStringLiteral("#C3C3C3")),
+            QColor(QStringLiteral("#B97A57")), QColor(QStringLiteral("#FFAEC9")), QColor(QStringLiteral("#FFC90E")),
+            QColor(QStringLiteral("#EFE4B0")), QColor(QStringLiteral("#B5E61D")), QColor(QStringLiteral("#99D9EA")),
+            QColor(QStringLiteral("#7092BE")), QColor(QStringLiteral("#C8BFE7"))};
 }
 } // namespace
 
@@ -226,22 +213,37 @@ PaintBar::PaintBar(QWidget *parent)
     m_fillButton = createIconButton(GlyphIcon::kFill, QStringLiteral("填充/描边"), this);
     m_fillButton->setObjectName(QStringLiteral("btn_StrokeFill"));
     m_fillButton->setCheckable(true);
-    connect(m_fillButton, &QToolButton::toggled, this, &PaintBar::sigFilledChanged);
+    connect(m_fillButton, &QToolButton::toggled, this, [this](bool filled) { emit sigFilledChanged(filled); });
     m_secondaryLayout->addWidget(m_fillButton);
+
+    m_eraserModeGroup = new QButtonGroup(this);
+    m_eraserModeGroup->setExclusive(true);
+    m_eraserBrushButton = createIconButton(GlyphIcon::kEraser, QStringLiteral("自由橡皮擦"), m_secondaryRow);
+    m_eraserBrushButton->setObjectName(QStringLiteral("btn_EraserBrush"));
+    m_eraserBrushButton->setCheckable(true);
+    m_eraserModeGroup->addButton(m_eraserBrushButton, 0);
+    m_secondaryLayout->addWidget(m_eraserBrushButton);
+
+    m_eraserAreaButton = createIconButton(GlyphIcon::kRectangle, QStringLiteral("矩形橡皮擦"), m_secondaryRow);
+    m_eraserAreaButton->setObjectName(QStringLiteral("btn_EraserArea"));
+    m_eraserAreaButton->setCheckable(true);
+    m_eraserModeGroup->addButton(m_eraserAreaButton, 1);
+    m_secondaryLayout->addWidget(m_eraserAreaButton);
+    m_eraserBrushButton->setChecked(true);
+    connect(m_eraserModeGroup, &QButtonGroup::idClicked, this, [this](int id) {
+        m_eraserBrushMode = id == 0;
+        emit sigFilledChanged(!m_eraserBrushMode);
+    });
 
     m_mosaicModeGroup = new QButtonGroup(this);
     m_mosaicModeGroup->setExclusive(true);
-    m_mosaicBrushButton = createIconButton(GlyphIcon::kMosaicBrush,
-                                           QStringLiteral("画笔马赛克"),
-                                           m_secondaryRow);
+    m_mosaicBrushButton = createIconButton(GlyphIcon::kMosaicBrush, QStringLiteral("画笔马赛克"), m_secondaryRow);
     m_mosaicBrushButton->setObjectName(QStringLiteral("btn_MosaicBrush"));
     m_mosaicBrushButton->setCheckable(true);
     m_mosaicModeGroup->addButton(m_mosaicBrushButton, 0);
     m_secondaryLayout->addWidget(m_mosaicBrushButton);
 
-    m_mosaicAreaButton = createIconButton(GlyphIcon::kMosaicArea,
-                                          QStringLiteral("框选区域马赛克"),
-                                          m_secondaryRow);
+    m_mosaicAreaButton = createIconButton(GlyphIcon::kMosaicArea, QStringLiteral("框选区域马赛克"), m_secondaryRow);
     m_mosaicAreaButton->setObjectName(QStringLiteral("btn_MosaicArea"));
     m_mosaicAreaButton->setCheckable(true);
     m_mosaicModeGroup->addButton(m_mosaicAreaButton, 1);
@@ -275,17 +277,15 @@ PaintBar::PaintBar(QWidget *parent)
 
     m_arrowStyleGroup = new QButtonGroup(this);
     m_arrowStyleGroup->setExclusive(true);
-    const auto addArrowStyleButton = [this](GlyphIcon glyph,
-                                            const QString &toolTip,
-                                            const QString &objectName,
-                                            ArrowStyle style) {
-        auto *button = createIconButton(glyph, toolTip, m_secondaryRow);
-        button->setObjectName(objectName);
-        button->setCheckable(true);
-        m_arrowStyleGroup->addButton(button, static_cast<int>(style));
-        m_arrowStyleButtons.append(button);
-        m_secondaryLayout->addWidget(button);
-    };
+    const auto addArrowStyleButton =
+        [this](GlyphIcon glyph, const QString &toolTip, const QString &objectName, ArrowStyle style) {
+            auto *button = createIconButton(glyph, toolTip, m_secondaryRow);
+            button->setObjectName(objectName);
+            button->setCheckable(true);
+            m_arrowStyleGroup->addButton(button, static_cast<int>(style));
+            m_arrowStyleButtons.append(button);
+            m_secondaryLayout->addWidget(button);
+        };
     addArrowStyleButton(GlyphIcon::kArrowSolid,
                         QStringLiteral("实心箭头"),
                         QStringLiteral("btn_ArrowSolid"),
@@ -409,7 +409,7 @@ PaintBar::PaintBar(QWidget *parent)
     const auto colors = paletteColors();
     for (int index = 0; index < static_cast<int>(colors.size()); ++index) {
         const QColor color = colors[index];
-        auto *button = new QToolButton(m_paletteContainer);
+        auto        *button = new QToolButton(m_paletteContainer);
         button->setObjectName(QStringLiteral("btn_PaletteColor%1").arg(index + 1, 2, 10, QChar('0')));
         button->setProperty("paletteColor", QVariant::fromValue(color));
         button->setToolTip(color.name(QColor::HexRgb).toUpper());
@@ -417,11 +417,11 @@ PaintBar::PaintBar(QWidget *parent)
         button->setAutoRaise(false);
         button->setFixedSize(18, 18);
         button->setFocusPolicy(Qt::NoFocus);
-        button->setStyleSheet(QStringLiteral(
-                                  "QToolButton { background-color: %1; border: 2px solid #D6D6D6; border-radius: 1px; }"
-                                  "QToolButton:hover { border-color: white; }"
-                                  "QToolButton:checked { background-color: %1; border: 2px solid #0A84FF; }")
-                                  .arg(color.name(QColor::HexRgb)));
+        button->setStyleSheet(
+            QStringLiteral("QToolButton { background-color: %1; border: 2px solid #D6D6D6; border-radius: 1px; }"
+                           "QToolButton:hover { border-color: white; }"
+                           "QToolButton:checked { background-color: %1; border: 2px solid #0A84FF; }")
+                .arg(color.name(QColor::HexRgb)));
         paletteLayout->addWidget(button, index / 10, index % 10);
         m_paletteButtons.append(button);
         connect(button, &QToolButton::clicked, this, [this, color]() {
@@ -578,6 +578,7 @@ void PaintBar::updateSecondaryControls()
     const bool is_arrow = m_tool == PaintTool::kArrow;
     const bool is_marker = m_tool == PaintTool::kMarker;
     const bool is_effect = m_tool == PaintTool::kMosaic;
+    const bool is_eraser = m_tool == PaintTool::kEraser;
     const bool is_text = m_tool == PaintTool::kText;
     const bool is_shape = m_tool == PaintTool::kRectangle || m_tool == PaintTool::kEllipse;
     const bool has_size = !is_effect;
@@ -585,6 +586,12 @@ void PaintBar::updateSecondaryControls()
 
     m_sizeButton->setVisible(has_size);
     m_fillButton->setVisible(is_shape);
+    m_eraserBrushButton->setVisible(is_eraser);
+    m_eraserAreaButton->setVisible(is_eraser);
+    if (is_eraser) {
+        m_eraserBrushButton->setChecked(m_eraserBrushMode);
+        m_eraserAreaButton->setChecked(!m_eraserBrushMode);
+    }
     m_mosaicBrushButton->setVisible(is_effect);
     m_mosaicAreaButton->setVisible(is_effect);
     if (is_effect) {
@@ -592,7 +599,7 @@ void PaintBar::updateSecondaryControls()
     }
     m_opacityContainer->setVisible(is_marker);
     m_colorGroup->setVisible(has_color);
-    m_commonSeparator->setVisible(is_arrow || is_effect || is_text);
+    m_commonSeparator->setVisible(is_arrow || is_effect || is_eraser || is_text);
     for (QToolButton *button : m_arrowStyleButtons) {
         button->setVisible(is_arrow);
     }
@@ -608,11 +615,11 @@ void PaintBar::updateSecondaryControls()
 
 void PaintBar::updateSizeButton()
 {
-    const bool is_text = m_tool == PaintTool::kText;
+    const bool  is_text = m_tool == PaintTool::kText;
     const qreal value = is_text ? m_fontSize : m_size;
     m_sizeButton->setIcon(createSizeDotIcon(value, is_text));
     m_sizeButton->setToolTip(is_text ? QStringLiteral("字号：%1 px（滚轮调整）").arg(m_fontSize)
-                                    : QStringLiteral("大小：%1 px（滚轮调整）").arg(m_size, 0, 'g', 3));
+                                     : QStringLiteral("大小：%1 px（滚轮调整）").arg(m_size, 0, 'g', 3));
 }
 
 void PaintBar::updatePaletteSelection()
@@ -648,12 +655,10 @@ void PaintBar::updateEffectLevelToolTip()
 {
     if (m_mosaicBrushMode) {
         m_effectLevelSlider->setAccessibleName(QStringLiteral("笔宽"));
-        m_effectLevelSlider->setToolTip(
-            QStringLiteral("笔宽：%1 px").arg(m_effectLevelSlider->value()));
+        m_effectLevelSlider->setToolTip(QStringLiteral("笔宽：%1 px").arg(m_effectLevelSlider->value()));
         return;
     }
-    const QString mode = m_effectMode == PaintEffectMode::kBlur ? QStringLiteral("模糊")
-                                                                : QStringLiteral("马赛克");
+    const QString mode = m_effectMode == PaintEffectMode::kBlur ? QStringLiteral("模糊") : QStringLiteral("马赛克");
     m_effectLevelSlider->setAccessibleName(QStringLiteral("效果强度"));
     m_effectLevelSlider->setToolTip(QStringLiteral("%1强度：%2").arg(mode).arg(m_effectLevelSlider->value()));
 }

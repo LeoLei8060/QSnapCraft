@@ -29,8 +29,11 @@ set(QSNAPCRAFT_SOURCES
     src/capture/capturesession.h
     src/capture/selectionstate.cpp
     src/capture/selectionstate.h
+    src/capture/scrollstitcher.cpp
+    src/capture/scrollstitcher.h
     src/config/globalconfig.cpp
     src/config/globalconfig.h
+    src/config/pinoptions.h
     src/config/preferencessettings.cpp
     src/config/preferencessettings.h
     src/config/settingsdata.h
@@ -49,12 +52,18 @@ set(QSNAPCRAFT_SOURCES
     src/paint/paintwidths.h
     src/pinboard/pinwindow.cpp
     src/pinboard/pinwindow.h
+    src/pinboard/pinpool.cpp
+    src/pinboard/pinpool.h
+    src/pinboard/textimagerenderer.cpp
+    src/pinboard/textimagerenderer.h
     src/platform/windows/desktopcapture.cpp
     src/platform/windows/desktopcapture.h
     src/platform/windows/elementdetector.cpp
     src/platform/windows/elementdetector.h
     src/platform/windows/foregroundwindow.cpp
     src/platform/windows/foregroundwindow.h
+    src/platform/windows/ocrengine.cpp
+    src/platform/windows/ocrengine.h
     src/platform/windows/shortcutmanager.cpp
     src/platform/windows/shortcutmanager.h
     src/platform/windows/systemutils.cpp
@@ -71,12 +80,16 @@ set(QSNAPCRAFT_SOURCES
     src/ui/glyphicon.h
     src/ui/magnifier.cpp
     src/ui/magnifier.h
+    src/ui/ocrdialog.cpp
+    src/ui/ocrdialog.h
     src/ui/paintbar.cpp
     src/ui/paintbar.h
     src/ui/rulermeasurement.cpp
     src/ui/rulermeasurement.h
     src/ui/screenrulerwindow.cpp
     src/ui/screenrulerwindow.h
+    src/ui/scrollcaptureindicator.cpp
+    src/ui/scrollcaptureindicator.h
     src/ui/systemtray.cpp
     src/ui/systemtray.h
     src/ui/settings/aboutsettings.cpp
@@ -87,8 +100,12 @@ set(QSNAPCRAFT_SOURCES
     src/ui/settings/generalsettings.h
     src/ui/settings/interfacesettings.cpp
     src/ui/settings/interfacesettings.h
+    src/ui/settings/ocrsettings.cpp
+    src/ui/settings/ocrsettings.h
     src/ui/settings/outputsettings.cpp
     src/ui/settings/outputsettings.h
+    src/ui/settings/pinsettings.cpp
+    src/ui/settings/pinsettings.h
     src/ui/settings/screenshotsettings.cpp
     src/ui/settings/screenshotsettings.h
     src/ui/settings/settingswindow.cpp
@@ -105,6 +122,7 @@ target_link_libraries(QSnapCraftCore PUBLIC
     Qt6::Widgets
     Qt6::Network
     Dwmapi
+    WindowsApp
     oleacc
     ole32
     oleaut32
@@ -129,15 +147,21 @@ set(QSNAPCRAFT_TEST_SOURCES
     tests/desktopcapturetest.cpp
     tests/elementdetectortest.cpp
     tests/foregroundwindowtest.cpp
+    tests/outputservicetest.cpp
+    tests/ocrenginetest.cpp
     tests/paintbartest.cpp
     tests/paintscenetest.cpp
+    tests/pinwindowtest.cpp
     tests/preferencessettingstest.cpp
     tests/rulermeasurementtest.cpp
     tests/screenrulerwindowtest.cpp
     tests/selectionstatetest.cpp
+    tests/shortcutmanagertest.cpp
     tests/settingswindowtest.cpp
+    tests/scrollstitchertest.cpp
     tests/snipsettingstest.cpp
     tests/systemtraytest.cpp
+    tests/textimagerenderertest.cpp
 )
 
 set_source_files_properties(src/main.cpp PROPERTIES
@@ -158,6 +182,23 @@ set_property(SOURCE src/app/applicationcontroller.cpp APPEND PROPERTY OBJECT_DEP
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/capturebar.h;"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/platform/windows/shortcutmanager.h;"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/systemtray.h"
+)
+set_property(SOURCE src/app/windowmanager.cpp APPEND PROPERTY OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/app/windowmanager.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/pinboard/pinwindow.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/settingswindow.h"
+)
+set_property(SOURCE src/config/globalconfig.cpp APPEND PROPERTY OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/config/globalconfig.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/config/preferencessettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/config/settingsdata.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/capture/captureoptions.h"
+)
+set_property(SOURCE src/config/preferencessettings.cpp APPEND PROPERTY OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/config/preferencessettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/config/settingsdata.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/config/snipsettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/capture/captureoptions.h"
 )
 set_property(SOURCE src/capture/capturesession.cpp APPEND PROPERTY OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/capture/capturesession.h;"
@@ -192,6 +233,19 @@ set_property(SOURCE src/ui/paintbar.cpp APPEND PROPERTY OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/paint/paintscene.h;"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/paintbar.h"
 )
+set_property(SOURCE src/pinboard/pinwindow.cpp APPEND PROPERTY OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/pinboard/pinwindow.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/glyphicon.h"
+)
+set_property(SOURCE src/ui/settings/settingswindow.cpp APPEND PROPERTY OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/settingswindow.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/aboutsettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/controlsettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/generalsettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/interfacesettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/outputsettings.h;"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/settings/screenshotsettings.h"
+)
 
 set(QSNAPCRAFT_HEADERS ${QSNAPCRAFT_SOURCES})
 list(FILTER QSNAPCRAFT_HEADERS INCLUDE REGEX "\\.h$")
@@ -199,6 +253,13 @@ set(QSNAPCRAFT_HEADER_DEPENDENCIES)
 foreach(header IN LISTS QSNAPCRAFT_HEADERS)
     list(APPEND QSNAPCRAFT_HEADER_DEPENDENCIES
         "${CMAKE_CURRENT_SOURCE_DIR}/${header}"
+    )
+endforeach()
+set(QSNAPCRAFT_SOURCE_FILES ${QSNAPCRAFT_SOURCES})
+list(FILTER QSNAPCRAFT_SOURCE_FILES EXCLUDE REGEX "\\.h$")
+foreach(source_file IN LISTS QSNAPCRAFT_SOURCE_FILES)
+    set_property(SOURCE ${source_file} APPEND PROPERTY OBJECT_DEPENDS
+        "${QSNAPCRAFT_HEADER_DEPENDENCIES}"
     )
 endforeach()
 foreach(test_source IN LISTS QSNAPCRAFT_TEST_SOURCES)
@@ -253,6 +314,30 @@ if(BUILD_TESTING)
     )
     add_test(NAME ForegroundWindow COMMAND ForegroundWindowTest)
     set_tests_properties(ForegroundWindow PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(OutputServiceTest
+        tests/outputservicetest.cpp
+    )
+    target_link_libraries(OutputServiceTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME OutputService COMMAND OutputServiceTest)
+    set_tests_properties(OutputService PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(OcrEngineTest
+        tests/ocrenginetest.cpp
+    )
+    target_link_libraries(OcrEngineTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME OcrEngine COMMAND OcrEngineTest)
+    set_tests_properties(OcrEngine PROPERTIES
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 
@@ -316,6 +401,18 @@ if(BUILD_TESTING)
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 
+    add_executable(PinWindowTest
+        tests/pinwindowtest.cpp
+    )
+    target_link_libraries(PinWindowTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME PinWindow COMMAND PinWindowTest)
+    set_tests_properties(PinWindow PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
     add_executable(SnipSettingsTest
         tests/snipsettingstest.cpp
     )
@@ -325,6 +422,18 @@ if(BUILD_TESTING)
     )
     add_test(NAME SnipSettings COMMAND SnipSettingsTest)
     set_tests_properties(SnipSettings PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(ShortcutManagerTest
+        tests/shortcutmanagertest.cpp
+    )
+    target_link_libraries(ShortcutManagerTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME ShortcutManager COMMAND ShortcutManagerTest)
+    set_tests_properties(ShortcutManager PROPERTIES
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 
@@ -352,6 +461,18 @@ if(BUILD_TESTING)
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 
+    add_executable(TextImageRendererTest
+        tests/textimagerenderertest.cpp
+    )
+    target_link_libraries(TextImageRendererTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME TextImageRenderer COMMAND TextImageRendererTest)
+    set_tests_properties(TextImageRenderer PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
     add_executable(SettingsWindowTest
         tests/settingswindowtest.cpp
         resources/resources.qrc
@@ -362,6 +483,18 @@ if(BUILD_TESTING)
     )
     add_test(NAME SettingsWindow COMMAND SettingsWindowTest)
     set_tests_properties(SettingsWindow PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(ScrollStitcherTest
+        tests/scrollstitchertest.cpp
+    )
+    target_link_libraries(ScrollStitcherTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    add_test(NAME ScrollStitcher COMMAND ScrollStitcherTest)
+    set_tests_properties(ScrollStitcher PROPERTIES
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 

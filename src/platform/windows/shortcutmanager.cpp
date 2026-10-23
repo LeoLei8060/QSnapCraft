@@ -29,13 +29,17 @@ ShortcutManager::~ShortcutManager()
 
 bool ShortcutManager::registerHotkey(const QString &shortcut, int id)
 {
+    m_registrationErrors.remove(id);
     // 先注销已存在的快捷键
     unregisterHotkey(id);
 
     // 解析快捷键字符串
     QStringList keys = parseShortcutString(shortcut);
     if (keys.isEmpty()) {
-        qWarning() << "Invalid shortcut:" << shortcut;
+        const QString error = QStringLiteral("快捷键无效：%1").arg(shortcut);
+        m_registrationErrors[id] = error;
+        qWarning() << error;
+        emit sigRegistrationFailed(id, shortcut, error);
         return false;
     }
 
@@ -43,28 +47,33 @@ bool ShortcutManager::registerHotkey(const QString &shortcut, int id)
     UINT modifiers = getModifiers(keys);
     UINT vk = getVirtualKeyCode(keys.last()); // 最后一个是主键
     if (vk == 0) {
-        qWarning() << "Invalid key in shortcut:" << shortcut;
+        const QString error = QStringLiteral("快捷键无效，无法识别按键：%1").arg(shortcut);
+        m_registrationErrors[id] = error;
+        qWarning() << error;
+        emit sigRegistrationFailed(id, shortcut, error);
         return false;
     }
 
     // 注册快捷键
     if (!RegisterHotKey(nullptr, id, modifiers, vk)) {
-        DWORD error = GetLastError();
-        QString errorMessage;
-        switch (error) {
+        const DWORD error_code = GetLastError();
+        QString     error;
+        switch (error_code) {
         case ERROR_HOTKEY_ALREADY_REGISTERED:
-            errorMessage = "Hotkey already registered by another application";
+            error = QStringLiteral("快捷键已被其他程序占用：%1").arg(shortcut);
             break;
         case ERROR_INVALID_WINDOW_HANDLE:
-            errorMessage = "Invalid window handle";
+            error = QStringLiteral("快捷键注册失败：无效的窗口句柄（%1）").arg(shortcut);
             break;
         case ERROR_INVALID_PARAMETER:
-            errorMessage = "Invalid parameter";
+            error = QStringLiteral("快捷键参数无效：%1").arg(shortcut);
             break;
         default:
-            errorMessage = QString("Unknown error: %1").arg(error);
+            error = QStringLiteral("快捷键注册失败：%1（错误码 %2）").arg(shortcut).arg(error_code);
         }
-        qWarning() << "Failed to register hotkey:" << shortcut << "Error:" << errorMessage;
+        m_registrationErrors[id] = error;
+        qWarning() << error;
+        emit sigRegistrationFailed(id, shortcut, error);
         return false;
     }
 
@@ -76,6 +85,7 @@ bool ShortcutManager::registerHotkey(const QString &shortcut, int id)
 
 bool ShortcutManager::unregisterHotkey(int id)
 {
+    m_registrationErrors.remove(id);
     if (!m_registeredHotkeys.contains(id)) {
         return true; // 快捷键不存在，视为成功
     }
@@ -89,12 +99,18 @@ bool ShortcutManager::unregisterHotkey(int id)
     return true;
 }
 
+QString ShortcutManager::hotkeyError(int id) const
+{
+    return m_registrationErrors.value(id);
+}
+
 void ShortcutManager::unregisterAllHotkeys()
 {
     QList<int> ids = m_registeredHotkeys.keys();
     for (int id : ids) {
         unregisterHotkey(id);
     }
+    m_registrationErrors.clear();
 }
 
 bool ShortcutManager::nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result)
@@ -177,7 +193,7 @@ UINT ShortcutManager::getVirtualKeyCode(const QString &keyStr)
 
 UINT ShortcutManager::getModifiers(const QStringList &keys)
 {
-    UINT modifiers = MOD_NOREPEAT;  // 添加 MOD_NOREPEAT 标志防止按键重复
+    UINT modifiers = MOD_NOREPEAT; // 添加 MOD_NOREPEAT 标志防止按键重复
 
     // 遍历除最后一个键（主键）外的所有键
     for (int i = 0; i < keys.size() - 1; ++i) {
@@ -218,7 +234,7 @@ bool ShortcutManager::isHotkeyRegistered(const QString &shortcut, int id) const
 
     // 获取已注册的快捷键信息
     const auto &registeredHotkey = m_registeredHotkeys[id];
-    
+
     // 比较虚拟键码和修饰键是否匹配
     return registeredHotkey.first == vk && registeredHotkey.second == modifiers;
 }

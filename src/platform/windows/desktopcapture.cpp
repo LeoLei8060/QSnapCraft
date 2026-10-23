@@ -125,21 +125,16 @@ CaptureFrame captureVirtualDesktop(bool includeCursor)
         return frame;
     }
 
-    if (includeCursor) {
-        QImage cursorImage;
-        QPoint hotspot;
-        if (currentCursorImage(&cursorImage, &hotspot)) {
-            const QPoint cursorPosition = QCursor::pos();
-            for (DisplaySurface &surface : frame.displays) {
-                if (!surface.logicalGeometry.contains(cursorPosition)) {
-                    continue;
-                }
-                const qreal  scaleX = qreal(surface.nativeImage.width()) / surface.logicalGeometry.width();
-                const qreal  scaleY = qreal(surface.nativeImage.height()) / surface.logicalGeometry.height();
-                const QPoint point(qRound((cursorPosition.x() - surface.logicalGeometry.left()) * scaleX) - hotspot.x(),
-                                   qRound((cursorPosition.y() - surface.logicalGeometry.top()) * scaleY) - hotspot.y());
-                QPainter     cursorPainter(&surface.nativeImage);
-                cursorPainter.drawImage(point, cursorImage);
+    QImage cursorImage;
+    QPoint cursorHotspot;
+    if (currentCursorImage(&cursorImage, &cursorHotspot)) {
+        frame.cursorImage = std::move(cursorImage);
+        frame.cursorHotspot = cursorHotspot;
+        frame.cursorGlobalPosition = QCursor::pos();
+        frame.cursorIncluded = includeCursor;
+        for (const DisplaySurface &surface : frame.displays) {
+            if (surface.logicalGeometry.contains(frame.cursorGlobalPosition)) {
+                frame.cursorScale = surface.devicePixelRatio;
                 break;
             }
         }

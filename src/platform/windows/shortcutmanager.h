@@ -11,7 +11,19 @@ class ShortcutManager : public QObject, public QAbstractNativeEventFilter
     Q_OBJECT
 
 public:
-    enum EKeyType { captureKey = 1, captureCopyKey, showLastPinKey, showPinsKey, EscapeKey };
+    enum EKeyType {
+        captureKey = 1,
+        captureCopyKey,
+        showLastPinKey,
+        showPinsKey,
+        clickThroughKey,
+        EscapeKey,
+        scrollFinishKey,
+        captureFullDesktopKey,
+        captureLastAreaKey,
+        captureActiveScreenKey,
+        captureFixedSizeKey
+    };
 
     static ShortcutManager *instance();
 
@@ -22,11 +34,13 @@ public:
     // 注销所有快捷键
     void unregisterAllHotkeys();
     // 判断快捷键是否注册成功
-    bool isHotkeyRegistered(const QString &shortcut, int id) const;
+    bool    isHotkeyRegistered(const QString &shortcut, int id) const;
+    QString hotkeyError(int id) const;
 
 signals:
     // 当快捷键被触发时发出信号
     void hotkeyTriggered(int id);
+    void sigRegistrationFailed(int id, const QString &shortcut, const QString &error);
 
 public: // QAbstractNativeEventFilter interface
     bool nativeEventFilter(const QByteArray &eventType, void *message, qintptr *result) override;
@@ -49,6 +63,7 @@ private:
 private:
     static ShortcutManager      *s_instance;
     QMap<int, QPair<UINT, UINT>> m_registeredHotkeys; // id -> {vk, modifiers}
+    QMap<int, QString>           m_registrationErrors;
 };
 
 #endif // SHORTCUTMANAGER_H

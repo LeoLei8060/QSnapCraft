@@ -71,12 +71,22 @@ QString actionObjectName(ApplicationAction action)
         return QStringLiteral("btn_Ocr");
     case ApplicationAction::kPickColor:
         return QStringLiteral("btn_ColorPicker");
+    case ApplicationAction::kPaste:
+        return QStringLiteral("btn_Paste");
     case ApplicationAction::kScreenRuler:
         return QStringLiteral("btn_ScreenRuler");
     case ApplicationAction::kPreferences:
         return QStringLiteral("btn_Preferences");
     case ApplicationAction::kToggleCaptureBar:
         return QStringLiteral("action_ToggleCaptureBar");
+    case ApplicationAction::kToggleHotkeys:
+        return QStringLiteral("action_ToggleHotkeys");
+    case ApplicationAction::kHideAllImages:
+        return QStringLiteral("action_HideAllImages");
+    case ApplicationAction::kShowAllImages:
+        return QStringLiteral("action_ShowAllImages");
+    case ApplicationAction::kRecoverImage:
+        return QStringLiteral("action_RecoverImage");
     case ApplicationAction::kAbout:
         return QStringLiteral("action_About");
     case ApplicationAction::kQuit:
@@ -89,7 +99,11 @@ QString actionObjectName(ApplicationAction action)
 bool isImplementedAction(ApplicationAction action)
 {
     return action == ApplicationAction::kSnip || action == ApplicationAction::kCaptureActiveWindow
-           || action == ApplicationAction::kPickColor || action == ApplicationAction::kScreenRuler
+           || action == ApplicationAction::kScrollSnip || action == ApplicationAction::kOcrSnip
+           || action == ApplicationAction::kPaste || action == ApplicationAction::kPickColor
+           || action == ApplicationAction::kScreenRuler || action == ApplicationAction::kHideAllImages
+           || action == ApplicationAction::kShowAllImages || action == ApplicationAction::kRecoverImage
            || action == ApplicationAction::kPreferences || action == ApplicationAction::kToggleCaptureBar
-           || action == ApplicationAction::kAbout || action == ApplicationAction::kQuit;
+           || action == ApplicationAction::kToggleHotkeys || action == ApplicationAction::kAbout
+           || action == ApplicationAction::kQuit;
 }

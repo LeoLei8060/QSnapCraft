@@ -5,13 +5,13 @@
 #include <QString>
 #include <QVector>
 
-enum class CapturePhase { kIdle, kStarting, kSelecting, kAnnotating, kFinishing };
+enum class CapturePhase { kIdle, kStarting, kSelecting, kAnnotating, kScrolling, kFinishing };
 
-enum class CaptureIntent { kAnnotate, kCopy, kPin };
+enum class CaptureIntent { kAnnotate, kCopy, kPin, kScroll, kOcr };
 
 enum class CaptureStartMode { kPoint, kFullDesktop, kLastArea, kCenteredSize, kActiveScreen, kTwoCorners };
 
-enum class CaptureCommand { kCopy, kSave, kQuickSave, kPin, kUndo, kRedo, kDelete, kClearAll, kFinish, kCancel };
+enum class CaptureCommand { kCopy, kSave, kQuickSave, kPin, kOcr, kUndo, kRedo, kDelete, kClearAll, kFinish, kCancel };
 
 struct CaptureRequest
 {
@@ -44,6 +44,11 @@ struct CaptureFrame
     QRect                   logicalBounds;
     QVector<DisplaySurface> displays;
     QImage                  logicalComposite;
+    QImage                  cursorImage;
+    QPoint                  cursorHotspot;
+    QPoint                  cursorGlobalPosition;
+    qreal                   cursorScale{1.0};
+    bool                    cursorIncluded{false};
     QString                 error;
 
     bool isValid() const
@@ -56,3 +61,5 @@ bool renderCaptureSelection(const CaptureFrame &frame,
                             const QRect        &logicalSelection,
                             QImage             *image,
                             QString            *error = nullptr);
+
+qreal captureSelectionScale(const CaptureFrame &frame, const QRect &logical_selection);

@@ -1,18 +1,23 @@
 #include "applicationcontroller.h"
 
-#include "capture/capturesession.h"
 #include "app/windowmanager.h"
-#include "platform/windows/foregroundwindow.h"
+#include "capture/capturesession.h"
 #include "config/globalconfig.h"
+#include "pinboard/pinpool.h"
+#include "platform/windows/foregroundwindow.h"
 #include "platform/windows/shortcutmanager.h"
-#include "ui/systemtray.h"
 #include "platform/windows/systemutils.h"
 #include "ui/capturebar.h"
 #include "ui/colorpickerwindow.h"
 #include "ui/screenrulerwindow.h"
+#include "ui/systemtray.h"
 
 #include <QCoreApplication>
+#include <QCursor>
 #include <QDebug>
+#include <QGuiApplication>
+#include <QMessageBox>
+#include <QScreen>
 
 #include <windows.h>
 
@@ -32,7 +37,16 @@ bool ApplicationController::initialize()
     SystemUtils::setAutoStart(GlobalConfig::instance()->generalData().autoStart);
 
     m_systemTray = std::make_unique<SystemTray>();
+    connect(ShortcutManager::instance(),
+            &ShortcutManager::sigRegistrationFailed,
+            this,
+            [this](int, const QString &, const QString &error) {
+                if (m_systemTray) {
+                    m_systemTray->showMessage(QStringLiteral("热键注册失败"), error);
+                }
+            });
     m_windowManager = std::make_unique<WindowManager>();
+    m_pinPool = std::make_unique<PinPool>();
     m_captureSession = std::make_unique<CaptureSession>();
 
     m_foregroundTimer.setInterval(250);
@@ -52,18 +66,23 @@ bool ApplicationController::initialize()
     connect(m_captureSession.get(), &CaptureSession::sigFinished, this, [this](const CaptureResult &result) {
         restoreCaptureBar();
         if (result.intent == CaptureIntent::kPin && !result.image.isNull()) {
-            m_windowManager->pinImage(QPixmap::fromImage(result.image), result.globalPosition);
+            m_pinPool->pinImage(QPixmap::fromImage(result.image), result.globalPosition);
         }
     });
     connect(m_captureSession.get(), &CaptureSession::sigPinned, this, [this](const CaptureResult &result) {
         if (!result.image.isNull()) {
-            m_windowManager->pinImage(QPixmap::fromImage(result.image), result.globalPosition);
+            m_pinPool->pinImage(QPixmap::fromImage(result.image), result.globalPosition);
         }
     });
     connect(m_captureSession.get(), &CaptureSession::sigCancelled, this, [this]() { restoreCaptureBar(); });
     connect(m_captureSession.get(), &CaptureSession::sigFailed, this, [this](const QString &error) {
         restoreCaptureBar();
         qWarning() << error;
+        QMessageBox::warning(nullptr, QStringLiteral("QSnapCraft"), error);
+    });
+    connect(m_captureSession.get(), &CaptureSession::sigOperationFailed, this, [this](const QString &error) {
+        qWarning() << error;
+        QMessageBox::warning(nullptr, QStringLiteral("QSnapCraft"), error);
     });
 
     m_captureBar = std::make_unique<CaptureBar>();
@@ -88,7 +107,7 @@ bool ApplicationController::initialize()
             });
     connect(GlobalConfig::instance(), &GlobalConfig::configChanged, this, [this]() {
         applyCaptureBarSettings();
-        initializeHotKey();
+        setHotkeysEnabled(m_hotkeysEnabled);
         SystemUtils::setAutoStart(GlobalConfig::instance()->generalData().autoStart);
         if (m_systemTray) {
             m_systemTray->setCaptureBarVisible(GlobalConfig::instance()->captureBarData().enabled);
@@ -96,6 +115,16 @@ bool ApplicationController::initialize()
     });
     applyCaptureBarSettings();
     initializeHotKey();
+    for (QScreen *screen : QGuiApplication::screens()) {
+        watchScreen(screen);
+    }
+    connect(qApp, &QGuiApplication::screenAdded, this, [this](QScreen *screen) {
+        watchScreen(screen);
+        refreshScreenTopology();
+    });
+    connect(qApp, &QGuiApplication::screenRemoved, this, [this](QScreen *) { refreshScreenTopology(); });
+    connect(qApp, &QGuiApplication::primaryScreenChanged, this, [this](QScreen *) { refreshScreenTopology(); });
+    m_systemTray->setHotkeysEnabled(m_hotkeysEnabled);
 
     connect(ShortcutManager::instance(), &ShortcutManager::hotkeyTriggered, this, [this](int id) {
         const auto key = static_cast<ShortcutManager::EKeyType>(id);
@@ -105,6 +134,37 @@ bool ApplicationController::initialize()
             break;
         case ShortcutManager::captureCopyKey:
             startScreenshot(true);
+            break;
+        case ShortcutManager::captureFullDesktopKey:
+            startScreenshotWithMode(CaptureStartMode::kFullDesktop);
+            break;
+        case ShortcutManager::captureLastAreaKey:
+            startScreenshotWithMode(CaptureStartMode::kLastArea);
+            break;
+        case ShortcutManager::captureActiveScreenKey:
+            startScreenshotWithMode(CaptureStartMode::kActiveScreen);
+            break;
+        case ShortcutManager::captureFixedSizeKey: {
+            const auto &control = GlobalConfig::instance()->controlData();
+            startScreenshotWithMode(CaptureStartMode::kCenteredSize,
+                                    QSize(control.fixedCaptureWidth, control.fixedCaptureHeight));
+            break;
+        }
+        case ShortcutManager::showLastPinKey:
+            if (!m_pinPool->pasteFromClipboard() && !m_pinPool->recoverLastPin()) {
+                qWarning() << "Clipboard does not contain an image and there is no closed pin to restore";
+            }
+            break;
+        case ShortcutManager::showPinsKey:
+            m_pinPool->togglePinsVisibility();
+            break;
+        case ShortcutManager::clickThroughKey:
+            m_pinPool->toggleClickThroughAt(QCursor::pos());
+            break;
+        case ShortcutManager::scrollFinishKey:
+            if (m_captureSession) {
+                m_captureSession->finishScrollCapture();
+            }
             break;
         case ShortcutManager::EscapeKey:
             if (m_captureSession) {
@@ -145,7 +205,7 @@ void ApplicationController::handleMessage(const QString &message)
 
 void ApplicationController::initializeHotKey()
 {
-    auto shortcut_manager = ShortcutManager::instance();
+    auto        shortcut_manager = ShortcutManager::instance();
     const auto &control_data = GlobalConfig::instance()->controlData();
     shortcut_manager->unregisterAllHotkeys();
 
@@ -155,7 +215,78 @@ void ApplicationController::initializeHotKey()
     if (!control_data.captureCopyHotkey.isEmpty()) {
         shortcut_manager->registerHotkey(control_data.captureCopyHotkey, ShortcutManager::captureCopyKey);
     }
+    if (!control_data.captureFullDesktopHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.captureFullDesktopHotkey, ShortcutManager::captureFullDesktopKey);
+    }
+    if (!control_data.captureLastAreaHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.captureLastAreaHotkey, ShortcutManager::captureLastAreaKey);
+    }
+    if (!control_data.captureActiveScreenHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.captureActiveScreenHotkey,
+                                         ShortcutManager::captureActiveScreenKey);
+    }
+    if (!control_data.captureFixedSizeHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.captureFixedSizeHotkey, ShortcutManager::captureFixedSizeKey);
+    }
+    if (!control_data.showLastPinHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.showLastPinHotkey, ShortcutManager::showLastPinKey);
+    }
+    if (!control_data.showPinsHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.showPinsHotkey, ShortcutManager::showPinsKey);
+    }
+    if (!control_data.clickThroughHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.clickThroughHotkey, ShortcutManager::clickThroughKey);
+    }
     shortcut_manager->registerHotkey(QStringLiteral("Esc"), ShortcutManager::EscapeKey);
+    m_hotkeysEnabled = true;
+    if (m_systemTray) {
+        m_systemTray->setHotkeysEnabled(true);
+    }
+}
+
+void ApplicationController::setHotkeysEnabled(bool enabled)
+{
+    if (enabled) {
+        initializeHotKey();
+        return;
+    }
+
+    ShortcutManager::instance()->unregisterAllHotkeys();
+    m_hotkeysEnabled = false;
+    if (m_systemTray) {
+        m_systemTray->setHotkeysEnabled(false);
+    }
+}
+
+void ApplicationController::watchScreen(QScreen *screen)
+{
+    if (screen == nullptr) {
+        return;
+    }
+    connect(screen, &QScreen::geometryChanged, this, &ApplicationController::refreshScreenTopology, Qt::UniqueConnection);
+    connect(screen,
+            &QScreen::availableGeometryChanged,
+            this,
+            &ApplicationController::refreshScreenTopology,
+            Qt::UniqueConnection);
+    connect(screen,
+            &QScreen::logicalDotsPerInchChanged,
+            this,
+            &ApplicationController::refreshScreenTopology,
+            Qt::UniqueConnection);
+    connect(screen,
+            &QScreen::physicalDotsPerInchChanged,
+            this,
+            &ApplicationController::refreshScreenTopology,
+            Qt::UniqueConnection);
+}
+
+void ApplicationController::refreshScreenTopology()
+{
+    applyCaptureBarSettings();
+    if (m_windowManager) {
+        m_pinPool->ensurePinsVisible();
+    }
 }
 
 void ApplicationController::startScreenshot(bool copy)
@@ -163,7 +294,27 @@ void ApplicationController::startScreenshot(bool copy)
     startCaptureWithSelection(copy, QRect());
 }
 
+void ApplicationController::startScrollScreenshot()
+{
+    startCapture(CaptureIntent::kScroll, CaptureStartMode::kPoint);
+}
+
 void ApplicationController::startCaptureWithSelection(bool copy, const QRect &selection)
+{
+    startCapture(copy ? CaptureIntent::kCopy : CaptureIntent::kAnnotate,
+                 selection.isValid() ? CaptureStartMode::kTwoCorners : CaptureStartMode::kPoint,
+                 selection);
+}
+
+void ApplicationController::startScreenshotWithMode(CaptureStartMode mode, const QSize &centered_size)
+{
+    startCapture(CaptureIntent::kAnnotate, mode, {}, centered_size);
+}
+
+void ApplicationController::startCapture(CaptureIntent    intent,
+                                         CaptureStartMode start_mode,
+                                         const QRect     &selection,
+                                         const QSize     &centered_size)
 {
     if (!m_captureSession || m_captureSession->isActive()) {
         return;
@@ -175,12 +326,16 @@ void ApplicationController::startCaptureWithSelection(bool copy, const QRect &se
     if (m_captureBar) {
         m_captureBar->suppressForCapture();
     }
-    QTimer::singleShot(50, this, [this, copy, selection]() {
+    QTimer::singleShot(50, this, [this, intent, start_mode, selection, centered_size]() {
         CaptureRequest request;
-        request.intent = copy ? CaptureIntent::kCopy : CaptureIntent::kAnnotate;
-        request.startMode = selection.isValid() ? CaptureStartMode::kTwoCorners : CaptureStartMode::kPoint;
+        request.intent = intent;
+        request.startMode = start_mode;
         request.initialSelection = selection;
-        m_captureSession->start(request, GlobalConfig::instance()->getPreferences().capture);
+        request.centeredSize = centered_size;
+        const ApplicationPreferences preferences = GlobalConfig::instance()->getPreferences();
+        CaptureOptions               options = preferences.capture;
+        options.ocrLanguage = preferences.ocr.language;
+        m_captureSession->start(request, options);
     });
 }
 
@@ -206,6 +361,28 @@ void ApplicationController::onActionTriggered(ApplicationAction action)
         }
         break;
     }
+    case ApplicationAction::kScrollSnip:
+        startScrollScreenshot();
+        break;
+    case ApplicationAction::kOcrSnip:
+        startCapture(CaptureIntent::kOcr, CaptureStartMode::kPoint);
+        break;
+    case ApplicationAction::kPaste:
+        if (!m_pinPool->pasteFromClipboard() && !m_pinPool->recoverLastPin()) {
+            qWarning() << "Clipboard does not contain an image and there is no closed pin to restore";
+        }
+        break;
+    case ApplicationAction::kHideAllImages:
+        m_pinPool->hideAllPins();
+        break;
+    case ApplicationAction::kShowAllImages:
+        m_pinPool->showAllPins();
+        break;
+    case ApplicationAction::kRecoverImage:
+        if (!m_pinPool->recoverLastPin()) {
+            qWarning() << "There is no closed pin to restore";
+        }
+        break;
     case ApplicationAction::kPickColor:
         if (m_captureSession && m_captureSession->isActive()) {
             break;
@@ -219,9 +396,7 @@ void ApplicationController::onActionTriggered(ApplicationAction action)
                 connect(m_colorPicker.get(), &ColorPickerWindow::sigColorPicked, this, [this]() {
                     restoreCaptureBar();
                 });
-                connect(m_colorPicker.get(), &ColorPickerWindow::sigCancelled, this, [this]() {
-                    restoreCaptureBar();
-                });
+                connect(m_colorPicker.get(), &ColorPickerWindow::sigCancelled, this, [this]() { restoreCaptureBar(); });
             }
             m_colorPicker->start();
         });
@@ -232,9 +407,7 @@ void ApplicationController::onActionTriggered(ApplicationAction action)
         }
         if (!m_screenRuler) {
             m_screenRuler = std::make_unique<ScreenRulerWindow>();
-            connect(m_screenRuler.get(), &ScreenRulerWindow::sigClosed, this, [this]() {
-                restoreCaptureBar();
-            });
+            connect(m_screenRuler.get(), &ScreenRulerWindow::sigClosed, this, [this]() { restoreCaptureBar(); });
         }
         if (m_screenRuler->isMinimized()) {
             m_screenRuler->showNormal();
@@ -257,6 +430,9 @@ void ApplicationController::onActionTriggered(ApplicationAction action)
         GlobalConfig::instance()->setCaptureBarData(data);
         break;
     }
+    case ApplicationAction::kToggleHotkeys:
+        setHotkeysEnabled(!m_hotkeysEnabled);
+        break;
     case ApplicationAction::kAbout:
         m_windowManager->onAboutActTriggered();
         break;

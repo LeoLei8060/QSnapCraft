@@ -28,6 +28,9 @@ public:
     void         enterAnnotating();
     void         recordSelectionForHistory();
     QImage       renderSelection() const;
+    QString      selectionSizeLabel() const;
+    bool         capturedCursorEnabled() const;
+    void         setCapturedCursorEnabled(bool enabled);
 
 signals:
     void sigSelectionConfirmed(const QRect &selection);
@@ -35,6 +38,7 @@ signals:
     void sigCommandRequested(CaptureCommand command, bool closeAfter);
 
 protected:
+    bool event(QEvent *event) override;
     void drawOverlay(QPainter &painter) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -52,6 +56,7 @@ private:
     void           drawSizeLabel(QPainter &painter);
     void           drawMagnifier(QPainter &painter);
     void           drawTips(QPainter &painter);
+    void           updateCapturedCursorPreview();
     SelectionEdges selectionEdgesAt(const QPoint &position) const;
     SelectionEdges selectionEdgesOutsideAt(const QPoint &position) const;
     void           updateInteractionCursor();
@@ -85,4 +90,5 @@ private:
     bool                      m_detectionEnabled{true};
     bool                      m_maskVisible{true};
     bool                      m_magnifierVisible{true};
+    bool                      m_physicalSizeUnit{false};
 };

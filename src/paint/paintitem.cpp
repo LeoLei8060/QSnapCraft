@@ -59,8 +59,10 @@ QImage blurredRegion(const QImage &source, const QRect &region, int radius)
             alpha += qAlpha(pixel);
         }
         for (int y = 0; y < input.height(); ++y) {
-            reinterpret_cast<QRgb *>(
-                blurred.scanLine(y))[x] = qRgba(red / diameter, green / diameter, blue / diameter, alpha / diameter);
+            reinterpret_cast<QRgb *>(blurred.scanLine(y))[x] = qRgba(red / diameter,
+                                                                     green / diameter,
+                                                                     blue / diameter,
+                                                                     alpha / diameter);
             const int  removed_y = qBound(0, y - radius, input.height() - 1);
             const int  added_y = qBound(0, y + radius + 1, input.height() - 1);
             const QRgb removed = reinterpret_cast<const QRgb *>(horizontal.constScanLine(removed_y))[x];
@@ -97,6 +99,11 @@ QRectF PaintItem::boundingRect() const
 
 QPainterPath PaintItem::shape() const
 {
+    if (m_tool == PaintTool::kEraser && m_filled) {
+        QPainterPath rect_path;
+        rect_path.addRect(m_path.boundingRect());
+        return rect_path;
+    }
     return m_path;
 }
 
@@ -531,7 +538,7 @@ void PaintItem::refreshEffectTiles()
     }
 
     const QPainterPath clip_path = effectClipPath();
-    const QRectF clip_bounds = clip_path.boundingRect().intersected(QRectF(m_sourceImage.rect()));
+    const QRectF       clip_bounds = clip_path.boundingRect().intersected(QRectF(m_sourceImage.rect()));
     if (clip_bounds.isEmpty()) {
         return;
     }
@@ -545,7 +552,7 @@ void PaintItem::refreshEffectTiles()
     for (int y = top; y <= bottom; y += EFFECT_TILE_SIZE) {
         for (int x = left; x <= right; x += EFFECT_TILE_SIZE) {
             const QPoint key(x, y);
-            const QRect tile_rect = effectTileRect(key);
+            const QRect  tile_rect = effectTileRect(key);
             if (!tile_rect.isValid() || !clip_path.intersects(QRectF(tile_rect))) {
                 continue;
             }
@@ -578,9 +585,8 @@ QImage PaintItem::renderEffectTile(const QRect &tile_rect) const
 {
     const int effect_level = effectLevel();
     if (m_effectMode == PaintEffectMode::kBlur) {
-        const int  radius = qBound(1, effect_level, 30);
-        const QRect sample_rect =
-            tile_rect.adjusted(-radius, -radius, radius, radius).intersected(m_sourceImage.rect());
+        const int radius = qBound(1, effect_level, 30);
+        const QRect sample_rect = tile_rect.adjusted(-radius, -radius, radius, radius).intersected(m_sourceImage.rect());
         const QImage blurred = blurredRegion(m_sourceImage, sample_rect, radius);
         const QRect  local_rect(tile_rect.topLeft() - sample_rect.topLeft(), tile_rect.size());
         return blurred.copy(local_rect);
@@ -597,6 +603,6 @@ QImage PaintItem::renderEffectTile(const QRect &tile_rect) const
     const QSize  reduced(qMax(1, sample_rect.width() / block), qMax(1, sample_rect.height() / block));
     const QImage pixelated = input.scaled(reduced, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
                                  .scaled(sample_rect.size(), Qt::IgnoreAspectRatio, Qt::FastTransformation);
-    const QRect  local_rect(tile_rect.topLeft() - sample_rect.topLeft(), tile_rect.size());
+    const QRect local_rect(tile_rect.topLeft() - sample_rect.topLeft(), tile_rect.size());
     return pixelated.copy(local_rect);
 }

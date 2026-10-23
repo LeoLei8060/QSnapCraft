@@ -25,6 +25,8 @@ private slots:
     void createsAndUndoesRectangle();
     void supportsReversedDrag();
     void deletesSelectedWithUndo();
+    void copiesPastesAndSelectsNewItem();
+    void nudgesSelectedItemWithUndo();
     void appliesArrowAndEffectProperties();
     void rendersDistinctArrowStyles();
     void rendersHollowArrowWithEmptyCenter();
@@ -38,6 +40,7 @@ private slots:
     void areaMosaicShrinksWithPointer();
     void startsBlurEffectWithoutFullFrameDelay();
     void keepsLargeBlurDragResponsive();
+    void areaEraserRestoresBackgroundWithUndo();
     void defersSelectedEffectPropertyRebuild();
 };
 
@@ -141,6 +144,46 @@ void PaintSceneTest::deletesSelectedWithUndo()
 
     scene.undoStack()->undo();
     QCOMPARE(scene.visibleItemCount(), 1);
+}
+
+void PaintSceneTest::copiesPastesAndSelectsNewItem()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kRectangle);
+    scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(80, 50));
+    scene.finishActiveItem();
+
+    scene.copySelected();
+    scene.pasteCopied();
+
+    QCOMPARE(scene.visibleItemCount(), 2);
+    QCOMPARE(scene.selectedItems().size(), 1);
+    QVERIFY(scene.hasEditableItem());
+    QVERIFY(scene.selectedItems().first() != nullptr);
+}
+
+void PaintSceneTest::nudgesSelectedItemWithUndo()
+{
+    PaintScene scene;
+    scene.setTool(PaintTool::kRectangle);
+    scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(80, 50));
+    scene.finishActiveItem();
+
+    QGraphicsItem *item = scene.editableItem();
+    QVERIFY(item);
+    const QPointF start = item->pos();
+    QKeyEvent     right_event(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier);
+    QCoreApplication::sendEvent(&scene, &right_event);
+    QCOMPARE(item->pos(), start + QPointF(1, 0));
+
+    QKeyEvent shifted_down(QEvent::KeyPress, Qt::Key_Down, Qt::ShiftModifier);
+    QCoreApplication::sendEvent(&scene, &shifted_down);
+    QCOMPARE(item->pos(), start + QPointF(1, 10));
+
+    scene.undoStack()->undo();
+    QCOMPARE(item->pos(), start + QPointF(1, 0));
 }
 
 void PaintSceneTest::appliesArrowAndEffectProperties()
@@ -492,6 +535,46 @@ void PaintSceneTest::keepsLargeBlurDragResponsive()
     const qint64 elapsed_ms = timer.elapsed();
 
     QVERIFY2(elapsed_ms < 200, qPrintable(QStringLiteral("elapsed_ms=%1").arg(elapsed_ms)));
+}
+
+void PaintSceneTest::areaEraserRestoresBackgroundWithUndo()
+{
+    PaintScene scene;
+    scene.setSceneRect(QRectF(0, 0, 100, 100));
+    QImage background(100, 100, QImage::Format_ARGB32_Premultiplied);
+    background.fill(Qt::red);
+    scene.setBackgroundImage(background);
+
+    scene.setTool(PaintTool::kRectangle);
+    scene.setColor(Qt::blue);
+    scene.setFilled(true);
+    scene.createItemAt(QPointF(10, 10));
+    scene.updateActiveItem(QPointF(90, 70));
+    scene.finishActiveItem();
+    scene.stopItemEditing();
+
+    scene.setTool(PaintTool::kEraser);
+    scene.setFilled(true);
+    scene.createItemAt(QPointF(20, 20));
+    scene.updateActiveItem(QPointF(60, 50));
+    scene.finishActiveItem();
+    scene.stopItemEditing();
+
+    QImage rendered(100, 100, QImage::Format_ARGB32_Premultiplied);
+    rendered.fill(Qt::transparent);
+    QPainter painter(&rendered);
+    scene.render(&painter, QRectF(rendered.rect()), QRectF(rendered.rect()));
+    painter.end();
+    QCOMPARE(rendered.pixelColor(40, 35), QColor(Qt::red));
+    QCOMPARE(rendered.pixelColor(80, 70), QColor(Qt::blue));
+
+    scene.undoStack()->undo();
+    QImage undone(100, 100, QImage::Format_ARGB32_Premultiplied);
+    undone.fill(Qt::transparent);
+    painter.begin(&undone);
+    scene.render(&painter, QRectF(undone.rect()), QRectF(undone.rect()));
+    painter.end();
+    QCOMPARE(undone.pixelColor(40, 35), QColor(Qt::blue));
 }
 
 void PaintSceneTest::defersSelectedEffectPropertyRebuild()

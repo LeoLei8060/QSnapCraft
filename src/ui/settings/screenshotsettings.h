@@ -30,13 +30,10 @@ private slots:
 
 private:
     QComboBox *createOutputActionCombo(const QString &objectName);
-    void       setOutputGesture(QComboBox          *actionCombo,
-                                QCheckBox          *exitCheck,
-                                bool                enabled,
-                                CaptureOutputAction action,
-                                bool                exit);
-    void       updateMagnifierState();
-    void       updateColorButton();
+    void       setOutputGesture(
+              QComboBox *actionCombo, QCheckBox *exitCheck, bool enabled, CaptureOutputAction action, bool exit);
+    void updateMagnifierState();
+    void updateColorButton();
 
     QCheckBox   *m_detectWindows{nullptr};
     QCheckBox   *m_detectUiElements{nullptr};
@@ -44,6 +41,10 @@ private:
     QCheckBox   *m_showTips{nullptr};
     QCheckBox   *m_autoCrossLines{nullptr};
     QCheckBox   *m_captureCursor{nullptr};
+    QCheckBox   *m_neverCaptureCursor{nullptr};
+    QCheckBox   *m_disableMouseScroll{nullptr};
+    QCheckBox   *m_uppercaseHexColor{nullptr};
+    QCheckBox   *m_physicalSelectionUnits{nullptr};
     QCheckBox   *m_showMagnifier{nullptr};
     QCheckBox   *m_magnifierMask{nullptr};
     QCheckBox   *m_magnifierBorder{nullptr};

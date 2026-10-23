@@ -10,6 +10,7 @@ private slots:
     void capturesVirtualDesktopImage();
     void rendersSelectionAtNativeResolution();
     void rendersMixedDpiSelectionWithoutGaps();
+    void renderSelectionHonorsCursorToggle();
 };
 
 void DesktopCaptureTest::capturesVirtualDesktopImage()
@@ -72,6 +73,31 @@ void DesktopCaptureTest::rendersMixedDpiSelectionWithoutGaps()
     }
     QCOMPARE(output.pixelColor(25, 100), QColor(Qt::red));
     QCOMPARE(output.pixelColor(275, 100), QColor(Qt::blue));
+}
+
+void DesktopCaptureTest::renderSelectionHonorsCursorToggle()
+{
+    CaptureFrame frame;
+    frame.logicalBounds = QRect(0, 0, 200, 200);
+    QImage background(200, 200, QImage::Format_ARGB32_Premultiplied);
+    background.fill(Qt::white);
+    frame.logicalComposite = background;
+    frame.displays = {
+        DisplaySurface{QStringLiteral("test"), frame.logicalBounds, background, 1.0},
+    };
+    frame.cursorImage = QImage(4, 4, QImage::Format_ARGB32_Premultiplied);
+    frame.cursorImage.fill(Qt::green);
+    frame.cursorHotspot = QPoint(0, 0);
+    frame.cursorGlobalPosition = QPoint(50, 50);
+    frame.cursorScale = 1.0;
+
+    QImage output;
+    QVERIFY(renderCaptureSelection(frame, QRect(25, 25, 100, 100), &output));
+    QCOMPARE(output.pixelColor(25, 25), QColor(Qt::white));
+
+    frame.cursorIncluded = true;
+    QVERIFY(renderCaptureSelection(frame, QRect(25, 25, 100, 100), &output));
+    QCOMPARE(output.pixelColor(25, 25), QColor(Qt::green));
 }
 
 QTEST_MAIN(DesktopCaptureTest)

@@ -27,8 +27,7 @@ void ApplicationActionTest::providesTrayActionMetadata()
 {
     QCOMPARE(actionDisplayName(ApplicationAction::kToggleCaptureBar), QStringLiteral("显示桌面工具条"));
     QCOMPARE(actionDisplayName(ApplicationAction::kAbout), QStringLiteral("关于"));
-    QCOMPARE(actionObjectName(ApplicationAction::kToggleCaptureBar),
-             QStringLiteral("action_ToggleCaptureBar"));
+    QCOMPARE(actionObjectName(ApplicationAction::kToggleCaptureBar), QStringLiteral("action_ToggleCaptureBar"));
 }
 
 void ApplicationActionTest::marksCurrentActionsImplemented()
@@ -38,11 +37,16 @@ void ApplicationActionTest::marksCurrentActionsImplemented()
     QVERIFY(isImplementedAction(ApplicationAction::kPickColor));
     QVERIFY(isImplementedAction(ApplicationAction::kScreenRuler));
     QVERIFY(isImplementedAction(ApplicationAction::kPreferences));
+    QVERIFY(isImplementedAction(ApplicationAction::kPaste));
+    QVERIFY(isImplementedAction(ApplicationAction::kHideAllImages));
+    QVERIFY(isImplementedAction(ApplicationAction::kShowAllImages));
+    QVERIFY(isImplementedAction(ApplicationAction::kRecoverImage));
+    QVERIFY(isImplementedAction(ApplicationAction::kToggleHotkeys));
     QVERIFY(isImplementedAction(ApplicationAction::kToggleCaptureBar));
     QVERIFY(isImplementedAction(ApplicationAction::kAbout));
     QVERIFY(isImplementedAction(ApplicationAction::kQuit));
-    QVERIFY(!isImplementedAction(ApplicationAction::kOcrSnip));
-    QVERIFY(!isImplementedAction(ApplicationAction::kScrollSnip));
+    QVERIFY(isImplementedAction(ApplicationAction::kOcrSnip));
+    QVERIFY(isImplementedAction(ApplicationAction::kScrollSnip));
 }
 
 QTEST_APPLESS_MAIN(ApplicationActionTest)

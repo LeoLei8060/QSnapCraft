@@ -289,7 +289,7 @@ private:
 class ScaleItemCommand : public QUndoCommand
 {
 public:
-    ScaleItemCommand(QGraphicsItem     *item,
+    ScaleItemCommand(QGraphicsItem    *item,
                      const QTransform &startTransform,
                      const QPointF    &startPosition,
                      const QTransform &endTransform,
@@ -573,7 +573,7 @@ PaintItem *PaintScene::createItemAt(const QPointF &position)
     item->setEffectLevel(m_effectMode, m_effectLevels[static_cast<std::size_t>(m_effectMode)]);
     if (m_tool == PaintTool::kEraser || m_tool == PaintTool::kMosaic) {
         QImage source = m_backgroundImage.copy();
-        if (!source.isNull()) {
+        if (m_tool == PaintTool::kMosaic && !source.isNull()) {
             const QList<QGraphicsItem *> selected = selectedItems();
             clearSelection();
             QPainter     painter(&source);
@@ -709,12 +709,15 @@ void PaintScene::copySelected()
 
 void PaintScene::pasteCopied()
 {
+    clearSelection();
+    QGraphicsItem *latest_item = nullptr;
     for (PaintItem *source : m_clipboardItems) {
         PaintItem *copy = source->clone();
         copy->moveBy(12, 12);
         addItem(copy);
         applyItemFlags(copy);
         m_undoStack->push(new AddPaintItemCommand(this, copy, QStringLiteral("粘贴标注")));
+        latest_item = copy;
     }
     for (PaintTextItem *source : m_clipboardTextItems) {
         PaintTextItem *copy = source->clone();
@@ -722,6 +725,10 @@ void PaintScene::pasteCopied()
         addItem(copy);
         applyItemFlags(copy);
         m_undoStack->push(new AddPaintItemCommand(this, copy, QStringLiteral("粘贴文字")));
+        latest_item = copy;
+    }
+    if (latest_item != nullptr) {
+        beginItemEditing(latest_item);
     }
 }
 
@@ -782,10 +789,8 @@ void PaintScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
             m_resizeStartPosition = event->scenePos();
             m_resizeStartTransform = m_resizeItem->transform();
             m_resizeStartItemPosition = m_resizeItem->pos();
-            m_resizeBaseWidth
-                = qMax<qreal>(1.0, m_resizeItem->mapRectToScene(m_resizeItem->boundingRect()).width());
-            m_resizeBaseHeight
-                = qMax<qreal>(1.0, m_resizeItem->mapRectToScene(m_resizeItem->boundingRect()).height());
+            m_resizeBaseWidth = qMax<qreal>(1.0, m_resizeItem->mapRectToScene(m_resizeItem->boundingRect()).width());
+            m_resizeBaseHeight = qMax<qreal>(1.0, m_resizeItem->mapRectToScene(m_resizeItem->boundingRect()).height());
             const QRectF local_bounds = m_resizeItem->boundingRect();
             switch (handle) {
             case PaintItemHandle::kTopLeft:
@@ -816,8 +821,7 @@ void PaintScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
             case PaintItemHandle::kMove:
                 break;
             }
-            m_resizeAnchorScene
-                = m_resizeStartItemPosition + m_resizeStartTransform.map(m_resizeAnchorLocal);
+            m_resizeAnchorScene = m_resizeStartItemPosition + m_resizeStartTransform.map(m_resizeAnchorLocal);
             event->accept();
             return;
         }
@@ -898,8 +902,7 @@ void PaintScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         case PaintItemHandle::kMove:
             break;
         }
-        const QTransform resized_transform
-            = QTransform::fromScale(qMax<qreal>(0.1, scale_x), qMax<qreal>(0.1, scale_y));
+        const QTransform resized_transform = QTransform::fromScale(qMax<qreal>(0.1, scale_x), qMax<qreal>(0.1, scale_y));
         m_resizeItem->setTransform(resized_transform);
         m_resizeItem->setPos(m_resizeAnchorScene - resized_transform.map(m_resizeAnchorLocal));
         update();
@@ -931,10 +934,10 @@ void PaintScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
         const QTransform endTransform = m_resizeItem->transform();
         if (endTransform != m_resizeStartTransform) {
             m_undoStack->push(new ScaleItemCommand(m_resizeItem,
-                                                  m_resizeStartTransform,
-                                                  m_resizeStartItemPosition,
-                                                  endTransform,
-                                                  m_resizeItem->pos()));
+                                                   m_resizeStartTransform,
+                                                   m_resizeStartItemPosition,
+                                                   endTransform,
+                                                   m_resizeItem->pos()));
         }
         m_resizeItem = nullptr;
         m_resizeHandle = PaintItemHandle::kNone;
@@ -976,15 +979,16 @@ void PaintScene::keyPressEvent(QKeyEvent *event)
     if (!selectedItems().isEmpty()
         && (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right || event->key() == Qt::Key_Up
             || event->key() == Qt::Key_Down)) {
-        QPointF delta;
+        const qreal distance = event->modifiers().testFlag(Qt::ShiftModifier) ? 10.0 : 1.0;
+        QPointF     delta;
         if (event->key() == Qt::Key_Left)
-            delta.setX(-1);
+            delta.setX(-distance);
         if (event->key() == Qt::Key_Right)
-            delta.setX(1);
+            delta.setX(distance);
         if (event->key() == Qt::Key_Up)
-            delta.setY(-1);
+            delta.setY(-distance);
         if (event->key() == Qt::Key_Down)
-            delta.setY(1);
+            delta.setY(distance);
         moveSelectedBy(delta);
         event->accept();
         return;
@@ -1046,7 +1050,8 @@ PaintItemHandle PaintScene::itemHandleAt(const QPointF &position) const
     }
 
     const QPointF local_position = item->mapFromScene(position);
-    if (const auto *paint_item = dynamic_cast<const PaintItem *>(item); paint_item != nullptr && !paint_item->isFilled()) {
+    if (const auto *paint_item = dynamic_cast<const PaintItem *>(item);
+        paint_item != nullptr && !paint_item->isFilled()) {
         QPainterPathStroker stroker;
         stroker.setWidth(qMax<qreal>(8.0, paint_item->penWidth() + 4.0));
         if (stroker.createStroke(paint_item->shape()).contains(local_position)) {
@@ -1054,8 +1059,7 @@ PaintItemHandle PaintScene::itemHandleAt(const QPointF &position) const
         }
         return PaintItemHandle::kNone;
     }
-    return item->shape().contains(local_position) ? PaintItemHandle::kMove
-                                                  : PaintItemHandle::kNone;
+    return item->shape().contains(local_position) ? PaintItemHandle::kMove : PaintItemHandle::kNone;
 }
 
 void PaintScene::beginItemEditing(QGraphicsItem *item)

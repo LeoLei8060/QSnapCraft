@@ -2,6 +2,8 @@
 
 #include <dwmapi.h>
 
+#include <QPoint>
+
 QRect windowFrameBounds(HWND window)
 {
     if (!window || !IsWindow(window)) {
@@ -31,4 +33,35 @@ HWND foregroundWindowExcludingCurrentProcess()
         return nullptr;
     }
     return window;
+}
+
+void focusWindowUnderPoint(const QPoint &global_position)
+{
+    POINT point{global_position.x(), global_position.y()};
+    HWND  window = WindowFromPoint(point);
+    if (window == nullptr) {
+        return;
+    }
+    window = GetAncestor(window, GA_ROOT);
+    if (window == nullptr || !IsWindowVisible(window)) {
+        return;
+    }
+
+    DWORD process_id = 0;
+    GetWindowThreadProcessId(window, &process_id);
+    if (process_id == GetCurrentProcessId()) {
+        return;
+    }
+
+    const DWORD current_thread = GetCurrentThreadId();
+    const DWORD target_thread = GetWindowThreadProcessId(window, nullptr);
+    if (current_thread != target_thread) {
+        AttachThreadInput(current_thread, target_thread, TRUE);
+    }
+    SetForegroundWindow(window);
+    SetFocus(window);
+    SetActiveWindow(window);
+    if (current_thread != target_thread) {
+        AttachThreadInput(current_thread, target_thread, FALSE);
+    }
 }

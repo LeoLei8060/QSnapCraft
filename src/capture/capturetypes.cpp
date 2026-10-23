@@ -21,12 +21,7 @@ bool renderCaptureSelection(const CaptureFrame &frame, const QRect &logicalSelec
         return false;
     }
 
-    qreal outputScale = 1.0;
-    for (const DisplaySurface &surface : frame.displays) {
-        if (surface.logicalGeometry.intersects(selection)) {
-            outputScale = qMax(outputScale, surface.devicePixelRatio);
-        }
-    }
+    const qreal outputScale = captureSelectionScale(frame, selection);
 
     const QSize outputSize(qMax(1, qRound(selection.width() * outputScale)),
                            qMax(1, qRound(selection.height() * outputScale)));
@@ -60,8 +55,29 @@ bool renderCaptureSelection(const CaptureFrame &frame, const QRect &logicalSelec
 
         painter.drawImage(target, surface.nativeImage, source);
     }
+
+    if (frame.cursorIncluded && !frame.cursorImage.isNull() && selection.contains(frame.cursorGlobalPosition)) {
+        const qreal   cursor_scale = frame.cursorScale > 0.0 ? frame.cursorScale : 1.0;
+        const qreal   draw_scale = outputScale / cursor_scale;
+        const QPointF cursor_point((frame.cursorGlobalPosition.x() - selection.left()) * outputScale,
+                                   (frame.cursorGlobalPosition.y() - selection.top()) * outputScale);
+        const QSizeF  cursor_size(frame.cursorImage.width() * draw_scale, frame.cursorImage.height() * draw_scale);
+        const QPointF hotspot(frame.cursorHotspot.x() * draw_scale, frame.cursorHotspot.y() * draw_scale);
+        painter.drawImage(QRectF(cursor_point - hotspot, cursor_size), frame.cursorImage);
+    }
     painter.end();
 
     *image = std::move(output);
     return true;
+}
+
+qreal captureSelectionScale(const CaptureFrame &frame, const QRect &logical_selection)
+{
+    qreal scale = 1.0;
+    for (const DisplaySurface &surface : frame.displays) {
+        if (surface.logicalGeometry.intersects(logical_selection)) {
+            scale = qMax(scale, surface.devicePixelRatio);
+        }
+    }
+    return scale;
 }

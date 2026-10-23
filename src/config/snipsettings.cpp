@@ -66,6 +66,8 @@ CaptureOptions loadCaptureOptions(QSettings &settings)
 
     settings.beginGroup(QStringLiteral("Misc"));
     options.uppercaseHexColor = settings.value(QStringLiteral("uppercase_hex_color"), options.uppercaseHexColor).toBool();
+    options.physicalSelectionUnits
+        = settings.value(QStringLiteral("use_physical_selection_size"), options.physicalSelectionUnits).toBool();
     settings.endGroup();
     return options;
 }
@@ -114,5 +116,6 @@ void saveCaptureOptions(QSettings &settings, const CaptureOptions &options)
 
     settings.beginGroup(QStringLiteral("Misc"));
     settings.setValue(QStringLiteral("uppercase_hex_color"), options.uppercaseHexColor);
+    settings.setValue(QStringLiteral("use_physical_selection_size"), options.physicalSelectionUnits);
     settings.endGroup();
 }

@@ -21,4 +21,5 @@ public:
                                 int            quality,
                                 QString       *error = nullptr);
     static QString chooseSavePath(QWidget *parent, const CaptureOptions &options, const QImage &image);
+    static QString ensurePathExtension(const QString &path, const QString &selectedFilterOrFormat);
 };

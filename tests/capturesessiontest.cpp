@@ -1,10 +1,13 @@
 #include "capture/capturesession.h"
 #include "capture/captureoptions.h"
+#include "platform/windows/ocrengine.h"
 #include "ui/captureoverlay.h"
+#include "ui/ocrdialog.h"
 
 #include <QtTest>
 
 #include <QApplication>
+#include <QTimer>
 #include <QToolButton>
 
 class CaptureSessionTest : public QObject
@@ -14,6 +17,8 @@ class CaptureSessionTest : public QObject
 private slots:
     void selectionStartsAnnotationWithoutCrash();
     void closeButtonCancelsActiveWindowAnnotation();
+    void pinResultUsesSelectionGlobalPosition();
+    void ocrIntentCompletesAfterResultDialog();
 };
 
 namespace {
@@ -77,6 +82,72 @@ void CaptureSessionTest::closeButtonCancelsActiveWindowAnnotation()
     QTRY_COMPARE_WITH_TIMEOUT(cancelled.count(), 1, 1000);
     QCOMPARE(session.phase(), CapturePhase::kIdle);
     QVERIFY(!overlay->isVisible());
+}
+
+void CaptureSessionTest::pinResultUsesSelectionGlobalPosition()
+{
+    CaptureSession session;
+    CaptureRequest request;
+    request.intent = CaptureIntent::kAnnotate;
+    request.startMode = CaptureStartMode::kTwoCorners;
+    request.initialSelection = QRect(100, 100, 500, 350);
+
+    bool          finished = false;
+    CaptureResult result;
+    connect(&session, &CaptureSession::sigFinished, this, [&](const CaptureResult &captured_result) {
+        result = captured_result;
+        finished = true;
+    });
+
+    QVERIFY(session.start(request, testOptions()));
+    CaptureOverlay *overlay = findOverlay();
+    QVERIFY(overlay);
+    QCOMPARE(session.phase(), CapturePhase::kAnnotating);
+
+    const QPoint expected_position = overlay->geometry().topLeft() + overlay->currentSelection().topLeft();
+    QKeyEvent    pin_event(QEvent::KeyPress, Qt::Key_T, Qt::ControlModifier);
+    QCoreApplication::sendEvent(overlay, &pin_event);
+
+    QTRY_VERIFY_WITH_TIMEOUT(finished, 1000);
+    QCOMPARE(result.intent, CaptureIntent::kPin);
+    QCOMPARE(result.globalPosition, expected_position);
+}
+
+void CaptureSessionTest::ocrIntentCompletesAfterResultDialog()
+{
+    if (!isOcrEngineAvailable()) {
+        QSKIP("Windows OCR language engine is unavailable");
+    }
+
+    CaptureSession session;
+    CaptureRequest request;
+    request.intent = CaptureIntent::kOcr;
+    request.startMode = CaptureStartMode::kTwoCorners;
+    request.initialSelection = QRect(50, 50, 420, 180);
+
+    bool          finished = false;
+    CaptureIntent finished_intent = CaptureIntent::kAnnotate;
+    connect(&session, &CaptureSession::sigFinished, this, [&](const CaptureResult &result) {
+        finished = true;
+        finished_intent = result.intent;
+    });
+    QTimer dialog_timer;
+    dialog_timer.setInterval(20);
+    connect(&dialog_timer, &QTimer::timeout, this, [&dialog_timer]() {
+        for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (auto *dialog = qobject_cast<OcrDialog *>(widget)) {
+                dialog_timer.stop();
+                dialog->accept();
+                return;
+            }
+        }
+    });
+    dialog_timer.start();
+
+    QVERIFY(session.start(request, testOptions()));
+    QVERIFY(finished);
+    QCOMPARE(finished_intent, CaptureIntent::kOcr);
+    QCOMPARE(session.phase(), CapturePhase::kIdle);
 }
 
 QTEST_MAIN(CaptureSessionTest)

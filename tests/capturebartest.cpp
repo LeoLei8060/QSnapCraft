@@ -13,7 +13,7 @@ class CaptureBarTest : public QObject
 private slots:
     void buildsSevenCaptureButtons();
     void emitsImplementedActions();
-    void disabledActionsRemainVisible();
+    void ocrActionIsEnabled();
     void autoHideKeepsARevealHotspot();
     void enteringHotspotRevealsCaptureBar();
     void suppressPreventsAutoHide();
@@ -60,15 +60,15 @@ void CaptureBarTest::emitsImplementedActions()
     QCOMPARE(actionSpy.at(2).at(0).value<ApplicationAction>(), ApplicationAction::kPreferences);
 }
 
-void CaptureBarTest::disabledActionsRemainVisible()
+void CaptureBarTest::ocrActionIsEnabled()
 {
     CaptureBar   captureBar;
     QToolButton *ocrButton = captureBar.findChild<QToolButton *>(actionObjectName(ApplicationAction::kOcrSnip));
 
     QVERIFY(ocrButton);
     QVERIFY(ocrButton->isVisibleTo(&captureBar));
-    QVERIFY(!ocrButton->isEnabled());
-    QVERIFY(ocrButton->toolTip().contains(QStringLiteral("开发中")));
+    QVERIFY(ocrButton->isEnabled());
+    QVERIFY(!ocrButton->toolTip().contains(QStringLiteral("开发中")));
 }
 
 void CaptureBarTest::autoHideKeepsARevealHotspot()
@@ -178,11 +178,11 @@ void CaptureBarTest::clampsDraggedBarInsideScreen()
     const QPoint start = drag_handle->mapToGlobal(drag_handle->rect().center());
     const QPoint end(screen.right() + 80, screen.bottom() + 80);
     QMouseEvent  press(QEvent::MouseButtonPress,
-                       QPointF(drag_handle->rect().center()),
-                       QPointF(start),
-                       Qt::LeftButton,
-                       Qt::LeftButton,
-                       Qt::NoModifier);
+                      QPointF(drag_handle->rect().center()),
+                      QPointF(start),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
     QCoreApplication::sendEvent(drag_handle, &press);
     QMouseEvent move(QEvent::MouseMove,
                      QPointF(drag_handle->rect().center()),
@@ -242,11 +242,11 @@ void CaptureBarTest::freeDragKeepsArrangementAndPosition()
     const QPoint target(screen.left() + 320, screen.top() + 260);
     const QPoint drag_offset = drag_handle->mapToGlobal(drag_handle->rect().center()) - captureBar.pos();
     QMouseEvent  press(QEvent::MouseButtonPress,
-                       QPointF(drag_handle->rect().center()),
-                       QPointF(drag_handle->mapToGlobal(drag_handle->rect().center())),
-                       Qt::LeftButton,
-                       Qt::LeftButton,
-                       Qt::NoModifier);
+                      QPointF(drag_handle->rect().center()),
+                      QPointF(drag_handle->mapToGlobal(drag_handle->rect().center())),
+                      Qt::LeftButton,
+                      Qt::LeftButton,
+                      Qt::NoModifier);
     QCoreApplication::sendEvent(drag_handle, &press);
     QMouseEvent move(QEvent::MouseMove,
                      QPointF(drag_handle->rect().center()),
