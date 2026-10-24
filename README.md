@@ -35,6 +35,34 @@
 - CMake 3.24 或更高版本
 - Windows 10/11 操作系统
 
+## 发布构建
+
+项目提供可重复的 Windows x64 便携版打包脚本：
+
+```powershell
+.\scripts\package-release.ps1
+```
+
+脚本会执行 Release 构建、全部 CTest、CMake 安装、Qt 运行库部署和 SHA-256 校验，
+最终在 `dist` 目录生成 `QSnapCraft-<version>-win64.zip`。发布包采用便携模式，
+配置文件和贴图数据写入程序所在工作目录；请将程序解压到当前用户可写的目录。
+
+便携包的长稳冒烟测试可执行：
+
+```powershell
+.\scripts\run-release-soak.ps1
+```
+
+运行日志位于 `%LOCALAPPDATA%\QSnapCraft\QSnapCraft\logs`。日志不会主动记录截图、
+剪贴板内容或完整用户目录。
+
+详细功能边界、系统要求和已知限制见 [RELEASE_NOTES.md](RELEASE_NOTES.md)。
+
+## 许可证
+
+项目源码使用 MIT License。发布包同时包含 Qt 和 Microsoft Visual C++ 运行库的
+第三方许可说明，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 ## 项目结构
 
 ```

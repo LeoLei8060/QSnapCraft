@@ -33,6 +33,7 @@
 
 *.user
 build
+dist/
 docs
 config.ini
 FastPictures/

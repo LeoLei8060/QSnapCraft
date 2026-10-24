@@ -100,6 +100,21 @@ QPixmap testImage()
     image.setPixelColor(3, 1, QColor(Qt::blue));
     return QPixmap::fromImage(image);
 }
+
+bool setClipboardData(const QString &format, const QByteArray &data)
+{
+    for (int attempt = 0; attempt < 10; ++attempt) {
+        auto *mimeData = new QMimeData();
+        mimeData->setData(format, data);
+        QApplication::clipboard()->setMimeData(mimeData);
+        QTest::qWait(20);
+        const QMimeData *clipboardData = QApplication::clipboard()->mimeData();
+        if (QApplication::clipboard()->ownsClipboard() && clipboardData != nullptr && clipboardData->hasFormat(format)) {
+            return true;
+        }
+    }
+    return false;
+}
 } // namespace
 
 void PinWindowTest::pinImageKeepsContentAtRequestedPosition()
@@ -1024,11 +1039,10 @@ void PinWindowTest::groupOperationsManageAllMembers()
 
 void PinWindowTest::gifClipboardCreatesPlayingPin()
 {
-    auto *mimeData = new QMimeData();
-    mimeData->setData(QStringLiteral("image/gif"),
-                      QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
-    QApplication::clipboard()->setMimeData(mimeData);
-    QTest::qWait(20);
+    if (!setClipboardData(QStringLiteral("image/gif"),
+                          QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="))) {
+        QSKIP("System clipboard is unavailable in this test session");
+    }
 
     PinPool manager;
     QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));
@@ -1053,11 +1067,10 @@ void PinWindowTest::persistsAnimatedPin()
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     {
-        auto *mimeData = new QMimeData();
-        mimeData->setData(QStringLiteral("image/gif"),
-                          QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
-        QApplication::clipboard()->setMimeData(mimeData);
-        QTest::qWait(20);
+        if (!setClipboardData(QStringLiteral("image/gif"),
+                              QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="))) {
+            QSKIP("System clipboard is unavailable in this test session");
+        }
 
         PinPool manager(directory.path());
         QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));
@@ -1079,11 +1092,10 @@ void PinWindowTest::persistsAnimatedPin()
 
 void PinWindowTest::animationMenuProvidesFrameAndSpeedControls()
 {
-    auto *mimeData = new QMimeData();
-    mimeData->setData(QStringLiteral("image/gif"),
-                      QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
-    QApplication::clipboard()->setMimeData(mimeData);
-    QTest::qWait(20);
+    if (!setClipboardData(QStringLiteral("image/gif"),
+                          QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="))) {
+        QSKIP("System clipboard is unavailable in this test session");
+    }
 
     PinPool manager;
     QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));

@@ -1,4 +1,5 @@
 #include "app/applicationcontroller.h"
+#include "app/diagnostics.h"
 #include "app/singleapplication.h"
 
 #include <QMessageBox>
@@ -9,7 +10,18 @@ int main(int argc, char *argv[])
 {
     SingleApplication app(argc, argv, QStringLiteral("QSnapCraft"));
     app.setOrganizationName(QStringLiteral("QSnapCraft"));
+    app.setOrganizationDomain(QStringLiteral("qsnapcraft.local"));
     app.setApplicationName(QStringLiteral("QSnapCraft"));
+    app.setApplicationVersion(QStringLiteral(QSNAPCRAFT_VERSION));
+
+    QString diagnosticsError;
+    if (!installDiagnostics({}, &diagnosticsError)) {
+        QMessageBox::warning(nullptr,
+                             QStringLiteral("QSnapCraft"),
+                             QStringLiteral("诊断日志初始化失败，应用将继续运行。\n%1").arg(diagnosticsError));
+    } else {
+        QObject::connect(&app, &QCoreApplication::aboutToQuit, &app, []() { shutdownDiagnostics(); });
+    }
 
     if (app.status() == SingleApplication::InstanceStatus::kFailed) {
         QMessageBox::critical(nullptr,

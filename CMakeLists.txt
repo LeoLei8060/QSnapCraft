@@ -18,6 +18,8 @@ set(QSNAPCRAFT_SOURCES
     src/app/applicationaction.h
     src/app/applicationcontroller.cpp
     src/app/applicationcontroller.h
+    src/app/diagnostics.cpp
+    src/app/diagnostics.h
     src/app/singleapplication.cpp
     src/app/singleapplication.h
     src/app/windowmanager.cpp
@@ -126,6 +128,7 @@ add_library(QSnapCraftCore STATIC ${QSNAPCRAFT_SOURCES})
 target_include_directories(QSnapCraftCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+target_compile_definitions(QSnapCraftCore PUBLIC QSNAPCRAFT_VERSION="${PROJECT_VERSION}")
 target_link_libraries(QSnapCraftCore PUBLIC
     Qt6::Widgets
     Qt6::Network
@@ -136,12 +139,31 @@ target_link_libraries(QSnapCraftCore PUBLIC
     oleaut32
 )
 
+configure_file(
+    resources/QSnapCraft.rc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/QSnapCraft.rc
+    @ONLY
+)
+
 add_executable(QSnapCraft WIN32
     src/main.cpp
     resources/resources.qrc
-    resources/QSnapCraft.rc
+    ${CMAKE_CURRENT_BINARY_DIR}/QSnapCraft.rc
 )
 target_link_libraries(QSnapCraft PRIVATE QSnapCraftCore)
+
+install(TARGETS QSnapCraft
+    RUNTIME DESTINATION .
+    COMPONENT Runtime
+)
+install(FILES
+    README.md
+    RELEASE_NOTES.md
+    THIRD_PARTY_NOTICES.md
+    LICENSE
+    DESTINATION .
+    COMPONENT Runtime
+)
 
 include(CTest)
 
@@ -153,6 +175,7 @@ set(QSNAPCRAFT_TEST_SOURCES
     tests/capturesessiontest.cpp
     tests/colorpickertest.cpp
     tests/desktopcapturetest.cpp
+    tests/diagnosticstest.cpp
     tests/elementdetectortest.cpp
     tests/foregroundwindowtest.cpp
     tests/outputservicetest.cpp
@@ -361,6 +384,28 @@ if(BUILD_TESTING)
     )
     add_test(NAME DesktopCapture COMMAND DesktopCaptureTest)
     set_tests_properties(DesktopCapture PROPERTIES
+        ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+    )
+
+    add_executable(DiagnosticsTest
+        tests/diagnosticstest.cpp
+    )
+    add_executable(DiagnosticsCrashProbe
+        tests/diagnosticscrashprobe.cpp
+    )
+    target_link_libraries(DiagnosticsCrashProbe PRIVATE
+        QSnapCraftCore
+    )
+    target_link_libraries(DiagnosticsTest PRIVATE
+        QSnapCraftCore
+        Qt6::Test
+    )
+    target_compile_definitions(DiagnosticsTest PRIVATE
+        QSNAPCRAFT_CRASH_PROBE_PATH="$<TARGET_FILE:DiagnosticsCrashProbe>"
+    )
+    add_dependencies(DiagnosticsTest DiagnosticsCrashProbe)
+    add_test(NAME Diagnostics COMMAND DiagnosticsTest)
+    set_tests_properties(Diagnostics PROPERTIES
         ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
     )
 
