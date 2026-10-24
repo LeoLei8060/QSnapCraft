@@ -1,8 +1,10 @@
-# QSnapCraft 1.0.0 发布说明
+# QSnapCraft 2.0.0 发布说明
 
 ## 发布形态
 
-- Windows x64 便携版，解压后运行 `QSnapCraft.exe`。
+- Windows x64 安装版：运行 `QSnapCraft-2.0.0-win64-setup.exe`，按当前用户安装，
+  无需管理员权限。
+- Windows x64 便携版：解压后运行 `QSnapCraft.exe`。
 - 需要 Windows 10 或 Windows 11。
 - OCR 使用 Windows 内置 OCR，需要至少安装一种 OCR 语言包。
 - 程序默认在托盘运行，同时显示桌面功能工具条和全局快捷键。
@@ -18,8 +20,8 @@
 
 ## 运行与数据位置
 
-- 本版本为便携模式：`config.ini` 位于程序启动工作目录。
-- 请将程序解压到当前用户可写目录，不要直接放入需要管理员权限的 Program Files。
+- 安装版默认位于 `%LOCALAPPDATA%\Programs\QSnapCraft`，`config.ini` 位于该目录。
+- 便携版请解压到当前用户可写的目录，`config.ini` 位于程序启动工作目录。
 - 贴图和分组数据位于 `%LOCALAPPDATA%\QSnapCraft\QSnapCraft\pins`。
 - 运行日志位于 `%LOCALAPPDATA%\QSnapCraft\QSnapCraft\logs`。
 - 崩溃日志只记录版本、UTC 时间、异常码、异常地址、进程和线程信息，不生成内存转储，
@@ -39,11 +41,14 @@
 - Qt 6.7.2 + MSVC 2019 x64：Debug 和 Release 均通过 28/28 项 CTest。
 - 实机双屏为两块 2560×1440、100% DPI 显示器，虚拟桌面为 5120×1440。
 - 便携包在不加载 Qt 开发环境路径的情况下可以启动并完成截图/取消。
+- 安装包完成默认目录安装、文件版本检查、启动冒烟和静默卸载闭环。
 - 30 次截图/取消循环后句柄变化不超过 10，工作集增加 0.1 MB，未观察到持续泄漏。
 - 崩溃探针成功生成异常码和线程信息，未写入用户目录、截图或剪贴板内容。
 
 ## 安装与卸载
 
+- 安装版创建开始菜单快捷方式、可选桌面快捷方式和标准卸载入口。
+- 安装器会检查并安装所需的 Microsoft Visual C++ Runtime。
 - 便携版无需安装。退出程序后删除解压目录即可移除程序。
 - 如需同时清除本地数据，请删除 `%LOCALAPPDATA%\QSnapCraft`。
 - 开机启动由程序内设置管理；移动程序目录后应重新打开程序并确认该选项。

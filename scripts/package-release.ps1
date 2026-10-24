@@ -6,6 +6,7 @@ param(
     [string]$QtSourceRoot = 'C:\Qt\6.7.2\Src',
     [string]$JomDirectory = 'C:\Qt\Tools\QtCreator\bin\jom',
     [string]$VisualStudioVersion = '16.0',
+    [string]$InstallerCompiler = '',
     [switch]$SkipTests
 )
 
@@ -42,6 +43,17 @@ if (-not (Test-Path $windeployqt)) {
 $jom = Join-Path $JomDirectory 'jom.exe'
 if (-not (Test-Path $jom)) {
     throw "jom.exe was not found at $jom."
+}
+if ([string]::IsNullOrWhiteSpace($InstallerCompiler)) {
+    $compilerCommand = Get-Command iscc -ErrorAction SilentlyContinue
+    if ($compilerCommand) {
+        $InstallerCompiler = $compilerCommand.Source
+    } else {
+        $InstallerCompiler = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
+    }
+}
+if (-not (Test-Path $InstallerCompiler)) {
+    throw "Inno Setup compiler was not found. Install Inno Setup 6 or pass -InstallerCompiler."
 }
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -147,5 +159,28 @@ $archiveHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.T
 "$archiveHash  $([System.IO.Path]::GetFileName($archivePath))" |
     Set-Content -LiteralPath $hashPath -Encoding ascii
 
+$installerScript = Join-Path $repoRoot 'installer\QSnapCraft.iss'
+$installerArguments = @(
+    "/DMyAppVersion=$version",
+    "/DSourceDir=$stagingDirectory",
+    "/DOutputDir=$OutputDirectory",
+    "/DRepoRoot=$repoRoot",
+    $installerScript
+)
+& $InstallerCompiler @installerArguments
+if ($LASTEXITCODE -ne 0) {
+    throw "Inno Setup compilation failed."
+}
+$installerPath = Join-Path $OutputDirectory "QSnapCraft-$version-win64-setup.exe"
+$installerHashPath = "$installerPath.sha256"
+if (-not (Test-Path $installerPath)) {
+    throw "Installer output was not found at $installerPath."
+}
+$installerHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+"$installerHash  $([System.IO.Path]::GetFileName($installerPath))" |
+    Set-Content -LiteralPath $installerHashPath -Encoding ascii
+
 Write-Host "PACKAGE=$archivePath"
 Write-Host "SHA256=$archiveHash"
+Write-Host "INSTALLER=$installerPath"
+Write-Host "INSTALLER_SHA256=$installerHash"

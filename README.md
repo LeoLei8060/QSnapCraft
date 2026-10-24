@@ -44,8 +44,13 @@
 ```
 
 脚本会执行 Release 构建、全部 CTest、CMake 安装、Qt 运行库部署和 SHA-256 校验，
-最终在 `dist` 目录生成 `QSnapCraft-<version>-win64.zip`。发布包采用便携模式，
-配置文件和贴图数据写入程序所在工作目录；请将程序解压到当前用户可写的目录。
+最终在 `dist` 目录生成：
+
+- `QSnapCraft-<version>-win64-setup.exe`：按当前用户安装，无需管理员权限。
+- `QSnapCraft-<version>-win64.zip`：便携版。
+
+安装版写入 `%LOCALAPPDATA%\Programs\QSnapCraft`；便携版请解压到当前用户可写的目录。
+两种形式都会在程序工作目录保存 `config.ini`。
 
 便携包的长稳冒烟测试可执行：
 
