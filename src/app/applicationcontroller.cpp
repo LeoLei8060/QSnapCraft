@@ -5,6 +5,7 @@
 #include "config/globalconfig.h"
 #include "pinboard/pinpool.h"
 #include "platform/windows/foregroundwindow.h"
+#include "platform/windows/ocrengine.h"
 #include "platform/windows/shortcutmanager.h"
 #include "platform/windows/systemutils.h"
 #include "ui/capturebar.h"
@@ -18,6 +19,7 @@
 #include <QGuiApplication>
 #include <QMessageBox>
 #include <QScreen>
+#include <QStandardPaths>
 
 #include <windows.h>
 
@@ -46,7 +48,10 @@ bool ApplicationController::initialize()
                 }
             });
     m_windowManager = std::make_unique<WindowManager>();
-    m_pinPool = std::make_unique<PinPool>();
+    const QString appDataDirectory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    const QString pinStorageDirectory = appDataDirectory.isEmpty() ? QString()
+                                                                   : appDataDirectory + QStringLiteral("/pins");
+    m_pinPool = std::make_unique<PinPool>(pinStorageDirectory);
     m_captureSession = std::make_unique<CaptureSession>();
 
     m_foregroundTimer.setInterval(250);
@@ -107,6 +112,7 @@ bool ApplicationController::initialize()
             });
     connect(GlobalConfig::instance(), &GlobalConfig::configChanged, this, [this]() {
         applyCaptureBarSettings();
+        refreshOcrAvailability();
         setHotkeysEnabled(m_hotkeysEnabled);
         SystemUtils::setAutoStart(GlobalConfig::instance()->generalData().autoStart);
         if (m_systemTray) {
@@ -114,6 +120,7 @@ bool ApplicationController::initialize()
         }
     });
     applyCaptureBarSettings();
+    refreshOcrAvailability();
     initializeHotKey();
     for (QScreen *screen : QGuiApplication::screens()) {
         watchScreen(screen);
@@ -151,12 +158,25 @@ bool ApplicationController::initialize()
             break;
         }
         case ShortcutManager::showLastPinKey:
-            if (!m_pinPool->pasteFromClipboard() && !m_pinPool->recoverLastPin()) {
-                qWarning() << "Clipboard does not contain an image and there is no closed pin to restore";
+            if (!m_pinPool->pasteFromClipboard()) {
+                m_systemTray->showMessage(QStringLiteral("无法贴图"),
+                                          QStringLiteral("剪贴板中没有可贴图的图像或文本内容。"));
             }
             break;
         case ShortcutManager::showPinsKey:
             m_pinPool->togglePinsVisibility();
+            break;
+        case ShortcutManager::hidePinsKey:
+            m_pinPool->hideAllPins();
+            break;
+        case ShortcutManager::showHiddenPinsKey:
+            m_pinPool->showAllPins();
+            break;
+        case ShortcutManager::closePinKey:
+            m_pinPool->closePinAt(QCursor::pos());
+            break;
+        case ShortcutManager::recoverClosedPinKey:
+            m_pinPool->recoverLastPin();
             break;
         case ShortcutManager::clickThroughKey:
             m_pinPool->toggleClickThroughAt(QCursor::pos());
@@ -231,8 +251,17 @@ void ApplicationController::initializeHotKey()
     if (!control_data.showLastPinHotkey.isEmpty()) {
         shortcut_manager->registerHotkey(control_data.showLastPinHotkey, ShortcutManager::showLastPinKey);
     }
-    if (!control_data.showPinsHotkey.isEmpty()) {
-        shortcut_manager->registerHotkey(control_data.showPinsHotkey, ShortcutManager::showPinsKey);
+    if (!control_data.hidePinsHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.hidePinsHotkey, ShortcutManager::hidePinsKey);
+    }
+    if (!control_data.showHiddenPinsHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.showHiddenPinsHotkey, ShortcutManager::showHiddenPinsKey);
+    }
+    if (!control_data.closePinHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.closePinHotkey, ShortcutManager::closePinKey);
+    }
+    if (!control_data.recoverClosedPinHotkey.isEmpty()) {
+        shortcut_manager->registerHotkey(control_data.recoverClosedPinHotkey, ShortcutManager::recoverClosedPinKey);
     }
     if (!control_data.clickThroughHotkey.isEmpty()) {
         shortcut_manager->registerHotkey(control_data.clickThroughHotkey, ShortcutManager::clickThroughKey);
@@ -365,11 +394,19 @@ void ApplicationController::onActionTriggered(ApplicationAction action)
         startScrollScreenshot();
         break;
     case ApplicationAction::kOcrSnip:
+        if (!isOcrEngineAvailable()) {
+            refreshOcrAvailability();
+            m_systemTray->showMessage(QStringLiteral("OCR 不可用"),
+                                      QStringLiteral("Windows 未安装可用的 OCR 语言包，请在首选项的 OCR 页面查看"
+                                                     "已识别语言并打开系统语言设置。"));
+            break;
+        }
         startCapture(CaptureIntent::kOcr, CaptureStartMode::kPoint);
         break;
     case ApplicationAction::kPaste:
-        if (!m_pinPool->pasteFromClipboard() && !m_pinPool->recoverLastPin()) {
-            qWarning() << "Clipboard does not contain an image and there is no closed pin to restore";
+        if (!m_pinPool->pasteFromClipboard()) {
+            m_systemTray->showMessage(QStringLiteral("无法贴图"),
+                                      QStringLiteral("剪贴板中没有可贴图的图像或文本内容。"));
         }
         break;
     case ApplicationAction::kHideAllImages:
@@ -474,6 +511,17 @@ void ApplicationController::applyCaptureBarSettings()
                              data.screenName,
                              data.freePosition,
                              edge == DockEdge::None && data.hasFreePosition);
+}
+
+void ApplicationController::refreshOcrAvailability()
+{
+    const bool available = isOcrEngineAvailable();
+    if (m_captureBar) {
+        m_captureBar->setOcrAvailable(available);
+    }
+    if (m_systemTray) {
+        m_systemTray->setOcrAvailable(available);
+    }
 }
 
 void ApplicationController::restoreCaptureBar()

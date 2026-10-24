@@ -14,6 +14,7 @@ private slots:
     void buildsSevenCaptureButtons();
     void emitsImplementedActions();
     void ocrActionIsEnabled();
+    void ocrAvailabilityUpdatesButton();
     void autoHideKeepsARevealHotspot();
     void enteringHotspotRevealsCaptureBar();
     void suppressPreventsAutoHide();
@@ -69,6 +70,21 @@ void CaptureBarTest::ocrActionIsEnabled()
     QVERIFY(ocrButton->isVisibleTo(&captureBar));
     QVERIFY(ocrButton->isEnabled());
     QVERIFY(!ocrButton->toolTip().contains(QStringLiteral("开发中")));
+}
+
+void CaptureBarTest::ocrAvailabilityUpdatesButton()
+{
+    CaptureBar   captureBar;
+    QToolButton *ocrButton = captureBar.findChild<QToolButton *>(actionObjectName(ApplicationAction::kOcrSnip));
+    QVERIFY(ocrButton);
+
+    captureBar.setOcrAvailable(false);
+    QVERIFY(!ocrButton->isEnabled());
+    QVERIFY(ocrButton->toolTip().contains(QStringLiteral("语言包")));
+
+    captureBar.setOcrAvailable(true);
+    QVERIFY(ocrButton->isEnabled());
+    QCOMPARE(ocrButton->toolTip(), QStringLiteral("OCR"));
 }
 
 void CaptureBarTest::autoHideKeepsARevealHotspot()

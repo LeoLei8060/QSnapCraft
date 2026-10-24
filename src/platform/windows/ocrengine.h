@@ -2,6 +2,7 @@
 
 #include <QImage>
 #include <QString>
+#include <QStringList>
 
 struct OcrRecognitionResult
 {
@@ -11,4 +12,5 @@ struct OcrRecognitionResult
 };
 
 bool                 isOcrEngineAvailable();
+QStringList          availableOcrLanguages();
 OcrRecognitionResult recognizeImageText(const QImage &image, const QString &language = {});

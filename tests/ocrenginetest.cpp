@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QStringList>
 #include <QtTest>
 
 class OcrEngineTest : public QObject
@@ -13,9 +14,23 @@ class OcrEngineTest : public QObject
     Q_OBJECT
 
 private slots:
+    void listsAvailableRecognizerLanguages();
     void recognizesRenderedText();
     void ocrDialogCopiesEditedText();
 };
+
+void OcrEngineTest::listsAvailableRecognizerLanguages()
+{
+    const QStringList languages = availableOcrLanguages();
+    QStringList       sortedLanguages = languages;
+    sortedLanguages.sort(Qt::CaseInsensitive);
+    sortedLanguages.removeDuplicates();
+
+    QCOMPARE(languages, sortedLanguages);
+    if (isOcrEngineAvailable()) {
+        QVERIFY(!languages.isEmpty());
+    }
+}
 
 void OcrEngineTest::recognizesRenderedText()
 {

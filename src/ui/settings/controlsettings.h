@@ -33,6 +33,11 @@ private:
     QHotKeyLineEdit *m_captureLastAreaHotkey{nullptr};
     QHotKeyLineEdit *m_captureActiveScreenHotkey{nullptr};
     QHotKeyLineEdit *m_captureFixedSizeHotkey{nullptr};
+    QHotKeyLineEdit *m_pasteHotkey{nullptr};
+    QHotKeyLineEdit *m_showAllPinsHotkey{nullptr};
+    QHotKeyLineEdit *m_showHiddenPinsHotkey{nullptr};
+    QHotKeyLineEdit *m_closePinHotkey{nullptr};
+    QHotKeyLineEdit *m_recoverClosedPinHotkey{nullptr};
     QHotKeyLineEdit *m_clickThroughHotkey{nullptr};
     QSpinBox        *m_fixedWidth{nullptr};
     QSpinBox        *m_fixedHeight{nullptr};
@@ -42,5 +47,10 @@ private:
     QLabel          *m_captureLastAreaStatus{nullptr};
     QLabel          *m_captureActiveScreenStatus{nullptr};
     QLabel          *m_captureFixedSizeStatus{nullptr};
+    QLabel          *m_pasteStatus{nullptr};
+    QLabel          *m_showAllPinsStatus{nullptr};
+    QLabel          *m_showHiddenPinsStatus{nullptr};
+    QLabel          *m_closePinStatus{nullptr};
+    QLabel          *m_recoverClosedPinStatus{nullptr};
     QLabel          *m_clickThroughStatus{nullptr};
 };

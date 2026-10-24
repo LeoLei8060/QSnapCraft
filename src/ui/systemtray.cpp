@@ -40,6 +40,16 @@ void SystemTray::setHotkeysEnabled(bool enabled)
     }
 }
 
+void SystemTray::setOcrAvailable(bool available)
+{
+    if (m_ocrAction == nullptr) {
+        return;
+    }
+    m_ocrAction->setEnabled(available);
+    m_ocrAction->setToolTip(available ? actionDisplayName(ApplicationAction::kOcrSnip)
+                                      : QStringLiteral("OCR（未安装 Windows OCR 语言包）"));
+}
+
 void SystemTray::showMessage(const QString &title, const QString &message)
 {
     m_trayIcon->showMessage(title, message, QSystemTrayIcon::Warning, 5000);
@@ -81,7 +91,7 @@ void SystemTray::createTrayIcon()
     addAction(ApplicationAction::kSnip);
     addAction(ApplicationAction::kCaptureActiveWindow);
     addAction(ApplicationAction::kScrollSnip);
-    addAction(ApplicationAction::kOcrSnip);
+    m_ocrAction = addAction(ApplicationAction::kOcrSnip);
     m_trayMenu->addSeparator();
     addAction(ApplicationAction::kHideAllImages);
     addAction(ApplicationAction::kShowAllImages);

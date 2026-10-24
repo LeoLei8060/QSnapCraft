@@ -1,12 +1,15 @@
 #include "pinboard/pinwindow.h"
 #include "pinboard/pinpool.h"
+#include "pinboard/pinsnapoverlay.h"
 
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QFile>
 #include <QGraphicsDropShadowEffect>
 #include <QImage>
 #include <QLabel>
@@ -64,6 +67,12 @@ private slots:
     void offscreenPinIsClampedAfterTopologyChange();
     void appliesShadowAndStayOnTopSettings();
     void windowShadowOverrideSurvivesUnrelatedSettingsRefresh();
+    void persistsStablePinAndGroupState();
+    void groupOperationsManageAllMembers();
+    void gifClipboardCreatesPlayingPin();
+    void persistsAnimatedPin();
+    void animationMenuProvidesFrameAndSpeedControls();
+    void snapOverlayUsesGuideBounds();
 };
 
 namespace {
@@ -919,6 +928,190 @@ void PinWindowTest::windowShadowOverrideSurvivesUnrelatedSettingsRefresh()
     QVERIFY(!effect->isEnabled());
     QVERIFY(QMetaObject::invokeMethod(&manager, "applyPinSettings"));
     QVERIFY(!effect->isEnabled());
+}
+
+void PinWindowTest::persistsStablePinAndGroupState()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QString pinId;
+    QString groupId;
+
+    {
+        PinPool manager(directory.path());
+        manager.pinImage(testImage(), QPoint(320, 320), QSize(100, 60));
+        PinWindow *pinWindow = nullptr;
+        for (QWidget *widget : QApplication::topLevelWidgets()) {
+            if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+                pinWindow = candidate;
+                break;
+            }
+        }
+        QVERIFY(pinWindow);
+        pinId = pinWindow->pinId();
+        groupId = manager.createGroup(QStringLiteral("参考图"));
+        manager.assignPinGroup(pinWindow, groupId);
+        pinWindow->setWindowOpacity(0.55);
+    }
+
+    QVERIFY(QFile::exists(QDir(directory.path()).filePath(QStringLiteral("pins.json"))));
+
+    PinPool restored(directory.path());
+    QCOMPARE(restored.pinCount(), 1);
+    QCOMPARE(restored.groups().size(), 1);
+    PinWindow *restoredPin = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            restoredPin = candidate;
+            break;
+        }
+    }
+    QVERIFY(restoredPin);
+    QCOMPARE(restoredPin->pinId(), pinId);
+    QCOMPARE(restoredPin->groupId(), groupId);
+    QVERIFY(qAbs(restoredPin->opacity() - 0.55) < 0.01);
+}
+
+void PinWindowTest::groupOperationsManageAllMembers()
+{
+    PinPool manager;
+    manager.pinImage(testImage(), QPoint(320, 320));
+    manager.pinImage(testImage(), QPoint(500, 320));
+
+    QVector<PinWindow *> pinWindows;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *pinWindow = qobject_cast<PinWindow *>(widget); pinWindow != nullptr && pinWindow->isVisible()) {
+            pinWindows.append(pinWindow);
+        }
+    }
+    QCOMPARE(pinWindows.size(), 2);
+
+    const QString groupId = manager.createGroup(QStringLiteral("参考图"));
+    QVERIFY(!groupId.isEmpty());
+    for (PinWindow *pinWindow : pinWindows) {
+        manager.assignPinGroup(pinWindow, groupId);
+        QCOMPARE(pinWindow->groupId(), groupId);
+    }
+
+    manager.setGroupVisible(groupId, false);
+    for (PinWindow *pinWindow : pinWindows) {
+        QVERIFY(!pinWindow->isVisible());
+    }
+    manager.setGroupVisible(groupId, true);
+    for (PinWindow *pinWindow : pinWindows) {
+        QVERIFY(pinWindow->isVisible());
+    }
+
+    QVERIFY(manager.renameGroup(groupId, QStringLiteral("重要参考")));
+    QCOMPARE(manager.groups().constFirst().name, QStringLiteral("重要参考"));
+
+    manager.closeGroup(groupId);
+    for (PinWindow *pinWindow : pinWindows) {
+        QVERIFY(!pinWindow->isVisible());
+    }
+    bool recovered = false;
+    QVERIFY(QMetaObject::invokeMethod(&manager, "recoverLastPin", Qt::DirectConnection, Q_RETURN_ARG(bool, recovered)));
+    QVERIFY(recovered);
+    QVERIFY(QMetaObject::invokeMethod(&manager, "recoverLastPin", Qt::DirectConnection, Q_RETURN_ARG(bool, recovered)));
+    QVERIFY(recovered);
+
+    manager.removeGroup(groupId);
+    QVERIFY(manager.groups().isEmpty());
+    for (PinWindow *pinWindow : pinWindows) {
+        QVERIFY(pinWindow->groupId().isEmpty());
+    }
+}
+
+void PinWindowTest::gifClipboardCreatesPlayingPin()
+{
+    auto *mimeData = new QMimeData();
+    mimeData->setData(QStringLiteral("image/gif"),
+                      QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
+    QApplication::clipboard()->setMimeData(mimeData);
+    QTest::qWait(20);
+
+    PinPool manager;
+    QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));
+    PinWindow *pinWindow = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            pinWindow = candidate;
+            break;
+        }
+    }
+    QVERIFY(pinWindow);
+    auto *content = pinWindow->findChild<QLabel *>(QStringLiteral("pinImageContent"));
+    QVERIFY(content);
+    QVERIFY(content->movie() != nullptr);
+    QAction *toggle = action(*pinWindow, QStringLiteral("action_ToggleAnimation"));
+    QVERIFY(toggle);
+    QVERIFY(toggle->isEnabled());
+}
+
+void PinWindowTest::persistsAnimatedPin()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    {
+        auto *mimeData = new QMimeData();
+        mimeData->setData(QStringLiteral("image/gif"),
+                          QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
+        QApplication::clipboard()->setMimeData(mimeData);
+        QTest::qWait(20);
+
+        PinPool manager(directory.path());
+        QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));
+    }
+
+    PinPool    restored(directory.path());
+    PinWindow *pinWindow = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            pinWindow = candidate;
+            break;
+        }
+    }
+    QVERIFY(pinWindow);
+    auto *content = pinWindow->findChild<QLabel *>(QStringLiteral("pinImageContent"));
+    QVERIFY(content);
+    QVERIFY(content->movie() != nullptr);
+}
+
+void PinWindowTest::animationMenuProvidesFrameAndSpeedControls()
+{
+    auto *mimeData = new QMimeData();
+    mimeData->setData(QStringLiteral("image/gif"),
+                      QByteArray::fromBase64("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="));
+    QApplication::clipboard()->setMimeData(mimeData);
+    QTest::qWait(20);
+
+    PinPool manager;
+    QVERIFY(QMetaObject::invokeMethod(&manager, "pasteFromClipboard"));
+    PinWindow *pinWindow = nullptr;
+    for (QWidget *widget : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<PinWindow *>(widget); candidate != nullptr && candidate->isVisible()) {
+            pinWindow = candidate;
+            break;
+        }
+    }
+    QVERIFY(pinWindow);
+    auto *menu = pinWindow->findChild<QMenu *>(QStringLiteral("menu_Animation"));
+    QVERIFY(menu);
+    QVERIFY(!menu->isVisible());
+    QVERIFY(menu->findChild<QAction *>(QStringLiteral("action_PreviousFrame")));
+    QVERIFY(menu->findChild<QAction *>(QStringLiteral("action_NextFrame")));
+    QVERIFY(menu->findChild<QAction *>(QStringLiteral("action_AnimationSpeed50")));
+    QVERIFY(menu->findChild<QAction *>(QStringLiteral("action_AnimationSpeed200")));
+}
+
+void PinWindowTest::snapOverlayUsesGuideBounds()
+{
+    PinSnapOverlay overlay;
+    overlay.setGuides({QLineF(300, 200, 300, 400)});
+    QVERIFY(overlay.isVisible());
+    QVERIFY(overlay.width() <= 8);
+    QVERIFY(overlay.height() >= 200);
+    overlay.hide();
 }
 
 QTEST_MAIN(PinWindowTest)

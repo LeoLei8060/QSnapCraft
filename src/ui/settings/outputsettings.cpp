@@ -17,7 +17,6 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSpinBox>
-#include <QStandardPaths>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -32,16 +31,16 @@ OutputSettings::OutputSettings(QWidget *parent)
     auto *pathLayout = new QGridLayout(pathGroup);
     pathLayout->setColumnStretch(1, 1);
 
-    const auto addPathRow = [this, pathGroup, pathLayout](int row,
-                                                         const QString &label,
-                                                         const QString &objectName,
-                                                         QLineEdit *&lineEdit,
-                                                         const QString &buttonText,
-                                                         auto slot) {
+    const auto addPathRow = [this, pathGroup, pathLayout](int            row,
+                                                          const QString &label,
+                                                          const QString &objectName,
+                                                          QLineEdit    *&lineEdit,
+                                                          const QString &buttonText,
+                                                          auto           slot) {
         auto *button = new QPushButton(buttonText, pathGroup);
         lineEdit = new QLineEdit(pathGroup);
         lineEdit->setObjectName(objectName);
-        lineEdit->setPlaceholderText(tr("留空时使用系统图片文件夹"));
+        lineEdit->setPlaceholderText(tr("留空时使用系统下载文件夹"));
         pathLayout->addWidget(new QLabel(label, pathGroup), row, 0);
         pathLayout->addWidget(lineEdit, row, 1);
         pathLayout->addWidget(button, row, 2);
@@ -112,11 +111,17 @@ OutputSettings::OutputSettings(QWidget *parent)
 
     auto *behaviorGroup = new QGroupBox(tr("输出行为"), this);
     auto *behaviorLayout = new QVBoxLayout(behaviorGroup);
-    m_autoSave = new QCheckBox(tr("输出成功后自动保存"), behaviorGroup);
+    m_autoSave = new QCheckBox(tr("任何输出成功后自动保存副本"), behaviorGroup);
     m_autoSave->setObjectName(QStringLiteral("check_AutoSave"));
+    auto *autoSaveHint = new QLabel(tr("复制、贴图、手动保存或快捷保存成功后，都会再写入一份到自动保存目录；"
+                                       "建议为自动保存选择独立目录。"),
+                                    behaviorGroup);
+    autoSaveHint->setObjectName(QStringLiteral("label_AutoSaveHint"));
+    autoSaveHint->setWordWrap(true);
     m_soundEnabled = new QCheckBox(tr("输出成功后播放提示音"), behaviorGroup);
     m_soundEnabled->setObjectName(QStringLiteral("check_OutputSound"));
     behaviorLayout->addWidget(m_autoSave);
+    behaviorLayout->addWidget(autoSaveHint);
     behaviorLayout->addWidget(m_soundEnabled);
     pageLayout->addWidget(behaviorGroup);
     pageLayout->addStretch();
@@ -150,9 +155,9 @@ void OutputSettings::setPreferences(const ApplicationPreferences &preferences)
     const QSignalBlocker autoSaveBlocker(m_autoSave);
     const QSignalBlocker soundBlocker(m_soundEnabled);
 
-    m_manualPath->setText(preferences.capture.manualSavePath);
-    m_quickPath->setText(preferences.capture.quickSavePath);
-    m_autoPath->setText(preferences.capture.autoSavePath);
+    m_manualPath->setText(resolveCaptureSaveDirectory(preferences.capture.manualSavePath));
+    m_quickPath->setText(resolveCaptureSaveDirectory(preferences.capture.quickSavePath));
+    m_autoPath->setText(resolveCaptureSaveDirectory(preferences.capture.autoSavePath));
     m_filenamePattern->setText(preferences.capture.filenamePattern);
     const int formatIndex = m_imageFormat->findText(preferences.capture.imageFormat, Qt::MatchFixedString);
     m_imageFormat->setCurrentIndex(formatIndex >= 0 ? formatIndex : 0);
@@ -183,9 +188,7 @@ void OutputSettings::restoreDefaults()
 
 QString OutputSettings::chooseDirectory(const QString &currentPath)
 {
-    const QString initial = currentPath.isEmpty()
-                                ? QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)
-                                : currentPath;
+    const QString initial = resolveCaptureSaveDirectory(currentPath);
     return QFileDialog::getExistingDirectory(this,
                                              tr("选择保存文件夹"),
                                              initial,
@@ -218,10 +221,7 @@ void OutputSettings::onBrowseAutoPath()
 
 void OutputSettings::onOpenFoldersClicked()
 {
-    QString path = m_quickPath->text().trimmed();
-    if (path.isEmpty()) {
-        path = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    }
+    const QString path = resolveCaptureSaveDirectory(m_quickPath->text());
     QDir().mkpath(path);
     QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }

@@ -7,6 +7,8 @@
 #include <QtTest>
 
 #include <QApplication>
+#include <QFile>
+#include <QFileInfo>
 #include <QTimer>
 #include <QToolButton>
 
@@ -18,6 +20,8 @@ private slots:
     void selectionStartsAnnotationWithoutCrash();
     void closeButtonCancelsActiveWindowAnnotation();
     void pinResultUsesSelectionGlobalPosition();
+    void quickSaveAlsoWritesAutoSaveSnapshot();
+    void reportsAutoSaveFailureWithoutDiscardingPrimaryOutput();
     void ocrIntentCompletesAfterResultDialog();
 };
 
@@ -111,6 +115,76 @@ void CaptureSessionTest::pinResultUsesSelectionGlobalPosition()
     QTRY_VERIFY_WITH_TIMEOUT(finished, 1000);
     QCOMPARE(result.intent, CaptureIntent::kPin);
     QCOMPARE(result.globalPosition, expected_position);
+}
+
+void CaptureSessionTest::quickSaveAlsoWritesAutoSaveSnapshot()
+{
+    QTemporaryDir quickSaveDirectory;
+    QTemporaryDir autoSaveDirectory;
+    QVERIFY(quickSaveDirectory.isValid());
+    QVERIFY(autoSaveDirectory.isValid());
+
+    CaptureOptions options = testOptions();
+    options.autoSave = true;
+    options.quickSavePath = quickSaveDirectory.path();
+    options.autoSavePath = autoSaveDirectory.path();
+    options.filenamePattern = QStringLiteral("Capture");
+    options.imageFormat = QStringLiteral("PNG");
+
+    CaptureSession session;
+    CaptureRequest request;
+    request.intent = CaptureIntent::kAnnotate;
+    request.startMode = CaptureStartMode::kTwoCorners;
+    request.initialSelection = QRect(100, 100, 320, 240);
+    QSignalSpy finished(&session, &CaptureSession::sigFinished);
+
+    QVERIFY(session.start(request, options));
+    CaptureOverlay *overlay = findOverlay();
+    QVERIFY(overlay);
+    QKeyEvent quickSaveEvent(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier | Qt::ShiftModifier);
+    QCoreApplication::sendEvent(overlay, &quickSaveEvent);
+
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 1000);
+    QVERIFY(QFileInfo::exists(quickSaveDirectory.filePath(QStringLiteral("Capture.png"))));
+    QVERIFY(QFileInfo::exists(autoSaveDirectory.filePath(QStringLiteral("Capture.png"))));
+}
+
+void CaptureSessionTest::reportsAutoSaveFailureWithoutDiscardingPrimaryOutput()
+{
+    QTemporaryDir quickSaveDirectory;
+    QTemporaryDir autoSaveDirectory;
+    QVERIFY(quickSaveDirectory.isValid());
+    QVERIFY(autoSaveDirectory.isValid());
+
+    QFile blocker(autoSaveDirectory.filePath(QStringLiteral("blocked")));
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    blocker.write("not a directory");
+    blocker.close();
+
+    CaptureOptions options = testOptions();
+    options.autoSave = true;
+    options.quickSavePath = quickSaveDirectory.path();
+    options.autoSavePath = blocker.fileName();
+    options.filenamePattern = QStringLiteral("Capture");
+    options.imageFormat = QStringLiteral("PNG");
+
+    CaptureSession session;
+    CaptureRequest request;
+    request.intent = CaptureIntent::kAnnotate;
+    request.startMode = CaptureStartMode::kTwoCorners;
+    request.initialSelection = QRect(100, 100, 320, 240);
+    QSignalSpy finished(&session, &CaptureSession::sigFinished);
+    QSignalSpy operationFailed(&session, &CaptureSession::sigOperationFailed);
+
+    QVERIFY(session.start(request, options));
+    CaptureOverlay *overlay = findOverlay();
+    QVERIFY(overlay);
+    QKeyEvent quickSaveEvent(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier | Qt::ShiftModifier);
+    QCoreApplication::sendEvent(overlay, &quickSaveEvent);
+
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 1000);
+    QVERIFY(QFileInfo::exists(quickSaveDirectory.filePath(QStringLiteral("Capture.png"))));
+    QCOMPARE(operationFailed.count(), 1);
 }
 
 void CaptureSessionTest::ocrIntentCompletesAfterResultDialog()

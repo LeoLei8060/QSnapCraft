@@ -144,7 +144,7 @@ void CaptureSession::beginScrollCapture(const QRect &selection)
         m_scrollIndicator = std::make_unique<ScrollCaptureIndicator>();
     }
     m_scrollIndicator->setSelection(m_scrollSelectionGlobal);
-    m_scrollIndicator->setCapturedHeight(first_frame.height());
+    m_scrollIndicator->setCapturedSize(first_frame.size());
     m_phase = CapturePhase::kScrolling;
     m_scrollActive = true;
 
@@ -173,7 +173,7 @@ void CaptureSession::captureScrollFrame()
     int added_rows = 0;
     m_scrollStitcher.appendFrame(frame_image, &added_rows);
     if (m_scrollIndicator) {
-        m_scrollIndicator->setCapturedHeight(m_scrollStitcher.image().height());
+        m_scrollIndicator->setCapturedSize(m_scrollStitcher.image().size());
     }
 }
 
@@ -200,17 +200,9 @@ void CaptureSession::finishScrollCapture()
         emit sigOperationFailed(error);
         return;
     }
-    if (m_options.autoSave) {
-        QString       auto_save_error;
-        const QString path = OutputService::saveSnapshot(image,
-                                                         m_options.autoSavePath,
-                                                         m_options.filenamePattern,
-                                                         m_options.imageFormat,
-                                                         m_options.jpegQuality,
-                                                         &auto_save_error);
-        if (path.isEmpty()) {
-            qWarning() << auto_save_error;
-        }
+    QString autoSaveError;
+    if (!saveAutoSnapshot(image, &autoSaveError)) {
+        emit sigOperationFailed(autoSaveError);
     }
 
     const CaptureResult result{m_scrollSelection, m_scrollSelectionGlobal.topLeft(), image, CaptureIntent::kScroll};
@@ -281,6 +273,10 @@ void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
             emit sigFailed(error);
             break;
         }
+        QString autoSaveError;
+        if (!saveAutoSnapshot(image, &autoSaveError)) {
+            emit sigOperationFailed(autoSaveError);
+        }
         notifyOutput(m_options);
         if (closeAfter) {
             m_overlay->recordSelectionForHistory();
@@ -303,6 +299,10 @@ void CaptureSession::onCommandRequested(CaptureCommand command, bool closeAfter)
         if (path.isEmpty()) {
             emit sigFailed(error);
             break;
+        }
+        QString autoSaveError;
+        if (!saveAutoSnapshot(image, &autoSaveError)) {
+            emit sigOperationFailed(autoSaveError);
         }
         notifyOutput(m_options);
         if (closeAfter) {
@@ -345,6 +345,21 @@ bool CaptureSession::showOcrDialog()
     return true;
 }
 
+bool CaptureSession::saveAutoSnapshot(const QImage &image, QString *error)
+{
+    if (!m_options.autoSave) {
+        return true;
+    }
+
+    const QString path = OutputService::saveSnapshot(image,
+                                                     m_options.autoSavePath,
+                                                     m_options.filenamePattern,
+                                                     m_options.imageFormat,
+                                                     m_options.jpegQuality,
+                                                     error);
+    return !path.isEmpty();
+}
+
 void CaptureSession::finishWithIntent(CaptureIntent intent, bool copyImage)
 {
     if (m_phase == CapturePhase::kIdle || !m_overlay) {
@@ -372,17 +387,9 @@ void CaptureSession::finishWithIntent(CaptureIntent intent, bool copyImage)
         return;
     }
 
-    if (m_options.autoSave) {
-        QString       autoSaveError;
-        const QString autoSavePath = OutputService::saveSnapshot(image,
-                                                                 m_options.autoSavePath,
-                                                                 m_options.filenamePattern,
-                                                                 m_options.imageFormat,
-                                                                 m_options.jpegQuality,
-                                                                 &autoSaveError);
-        if (autoSavePath.isEmpty()) {
-            qWarning() << autoSaveError;
-        }
+    QString autoSaveError;
+    if (!saveAutoSnapshot(image, &autoSaveError)) {
+        emit sigOperationFailed(autoSaveError);
     }
 
     notifyOutput(m_options);

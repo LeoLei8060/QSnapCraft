@@ -41,6 +41,7 @@ private:
     void captureScrollFrame();
     void stopScrollCapture();
     bool showOcrDialog();
+    bool saveAutoSnapshot(const QImage &image, QString *error);
     void finishWithIntent(CaptureIntent intent, bool copyImage);
     void resetSession();
     void fail(const QString &error);

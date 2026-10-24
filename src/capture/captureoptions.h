@@ -1,7 +1,19 @@
 #pragma once
 
 #include <QColor>
+#include <QStandardPaths>
 #include <QString>
+
+[[nodiscard]] inline QString defaultCaptureSaveDirectory()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+}
+
+[[nodiscard]] inline QString resolveCaptureSaveDirectory(const QString &configuredPath)
+{
+    const QString path = configuredPath.trimmed();
+    return path.isEmpty() ? defaultCaptureSaveDirectory() : path;
+}
 
 enum class CaptureOutputAction { kNone, kCopy, kPin, kSave, kQuickSave };
 
@@ -40,9 +52,9 @@ struct CaptureOptions
     int                 maxHistoryAreas{30};
     int                 borderWidth{1};
     QColor              anchorBorderColor{0, 0, 0, 255};
-    QString             quickSavePath;
-    QString             manualSavePath;
-    QString             autoSavePath;
+    QString             quickSavePath{defaultCaptureSaveDirectory()};
+    QString             manualSavePath{defaultCaptureSaveDirectory()};
+    QString             autoSavePath{defaultCaptureSaveDirectory()};
     QString             filenamePattern{QStringLiteral("QSnapCraft_$yyyy-MM-dd_HH-mm-ss$")};
     QString             imageFormat{QStringLiteral("PNG")};
     QString             ocrLanguage;

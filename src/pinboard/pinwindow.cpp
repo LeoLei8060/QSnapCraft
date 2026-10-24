@@ -7,6 +7,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QBuffer>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QContextMenuEvent>
@@ -23,6 +24,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QMovie>
 #include <QScreen>
 #include <QSignalBlocker>
 #include <QUrl>
@@ -63,14 +65,63 @@ PinWindow::~PinWindow()
     qDebug() << __FUNCTION__;
 }
 
-void PinWindow::pinImage(const QPixmap &pixmap, const QRect &rect)
+void PinWindow::pinImage(const QPixmap &pixmap, const QRect &rect, bool showWindow)
 {
+    if (m_movie != nullptr) {
+        m_movie->stop();
+        delete m_movie;
+        m_movie = nullptr;
+        delete m_animationBuffer;
+        m_animationBuffer = nullptr;
+    }
+    if (m_animationAction != nullptr) {
+        m_animationAction->setVisible(false);
+        m_animationMenu->menuAction()->setVisible(false);
+    }
+    m_animationData.clear();
+    m_animationFormat.clear();
     m_currentImage = pixmap;
     m_displayedSize = {};
     setContentGeometry(rect);
     notifyContentGeometryChanged();
+    if (showWindow) {
+        show();
+        raise();
+    }
+    emit sigStateChanged(this);
+}
+
+void PinWindow::pinAnimation(const QByteArray &data, const QString &format, const QRect &rect)
+{
+    if (data.isEmpty()) {
+        return;
+    }
+    m_animationData = data;
+    m_animationFormat = format;
+    delete m_movie;
+    delete m_animationBuffer;
+    m_animationBuffer = new QBuffer(this);
+    m_animationBuffer->setData(data);
+    m_animationBuffer->open(QIODevice::ReadOnly);
+    const QString movieFormat = format.startsWith(QStringLiteral("image/")) ? format.mid(6) : format;
+    m_movie = new QMovie(m_animationBuffer, movieFormat.toLatin1(), this);
+    m_movie->setCacheMode(QMovie::CacheAll);
+    m_movie->start();
+    if (m_movie->currentPixmap().isNull()) {
+        delete m_movie;
+        m_movie = nullptr;
+        return;
+    }
+    connect(m_movie, &QMovie::frameChanged, this, [this](int) { m_currentImage = m_movie->currentPixmap(); });
+    m_imageLabel->setMovie(m_movie);
+    m_currentImage = m_movie->currentPixmap();
+    setContentGeometry(rect);
+    m_animationAction->setVisible(true);
+    m_animationMenu->menuAction()->setVisible(true);
+    m_animationAction->setChecked(true);
     show();
     raise();
+    emit sigStateChanged(this);
 }
 
 void PinWindow::setClickThrough(bool enabled)
@@ -82,6 +133,7 @@ void PinWindow::setClickThrough(bool enabled)
     m_clickThrough = enabled;
     setAttribute(Qt::WA_TransparentForMouseEvents, enabled);
     applyClickThroughStyle();
+    emit sigStateChanged(this);
 }
 
 bool PinWindow::isClickThrough() const
@@ -100,6 +152,7 @@ void PinWindow::setShadowEnabled(bool enabled)
     }
     m_shadowEffect->setEnabled(enabled);
     update();
+    emit sigStateChanged(this);
 }
 
 void PinWindow::setStayOnTop(bool enabled)
@@ -121,6 +174,7 @@ void PinWindow::setStayOnTop(bool enabled)
         setAttribute(Qt::WA_TransparentForMouseEvents, true);
         applyClickThroughStyle();
     }
+    emit sigStateChanged(this);
 }
 
 void PinWindow::setSnapDistancePx(int distancePx)
@@ -151,6 +205,108 @@ void PinWindow::setZoomAtCursor(bool enabled)
 QRect PinWindow::contentRect() const
 {
     return QRect(m_imageLabel->mapToGlobal(QPoint()), m_imageLabel->size());
+}
+
+QPixmap PinWindow::currentImage() const
+{
+    return m_currentImage;
+}
+
+QString PinWindow::pinId() const
+{
+    return m_pinId;
+}
+
+QString PinWindow::groupId() const
+{
+    return m_groupId;
+}
+
+void PinWindow::setPinId(const QString &pinId)
+{
+    m_pinId = pinId;
+}
+
+void PinWindow::setGroup(const QString &groupId)
+{
+    if (m_groupId == groupId) {
+        return;
+    }
+    m_groupId = groupId;
+    setGroups(m_groups);
+    emit sigStateChanged(this);
+}
+
+void PinWindow::setGroups(const QVector<PinGroupData> &groups)
+{
+    m_groups = groups;
+    if (m_groupMenu == nullptr) {
+        return;
+    }
+    m_groupMenu->clear();
+    QAction *createAction = m_groupMenu->addAction(QStringLiteral("新建分组…"));
+    connect(createAction, &QAction::triggered, this, [this]() { emit sigCreateGroupRequested(this); });
+    m_groupMenu->addSeparator();
+    for (const PinGroupData &group : groups) {
+        QMenu   *groupMenu = m_groupMenu->addMenu(group.name);
+        QAction *assignAction = groupMenu->addAction(QStringLiteral("归入本组"));
+        assignAction->setCheckable(true);
+        assignAction->setChecked(group.id == m_groupId);
+        connect(assignAction, &QAction::triggered, this, [this, group]() {
+            emit sigGroupAssignmentRequested(this, group.id);
+        });
+        QAction *showAction = groupMenu->addAction(QStringLiteral("显示本组"));
+        connect(showAction, &QAction::triggered, this, [this, group]() {
+            emit sigGroupActionRequested(this, group.id, PinGroupAction::kShow);
+        });
+        QAction *hideAction = groupMenu->addAction(QStringLiteral("隐藏本组"));
+        connect(hideAction, &QAction::triggered, this, [this, group]() {
+            emit sigGroupActionRequested(this, group.id, PinGroupAction::kHide);
+        });
+        QAction *closeAction = groupMenu->addAction(QStringLiteral("关闭本组"));
+        connect(closeAction, &QAction::triggered, this, [this, group]() {
+            emit sigGroupActionRequested(this, group.id, PinGroupAction::kClose);
+        });
+        groupMenu->addSeparator();
+        QAction *renameAction = groupMenu->addAction(QStringLiteral("重命名…"));
+        connect(renameAction, &QAction::triggered, this, [this, group]() {
+            emit sigGroupActionRequested(this, group.id, PinGroupAction::kRename);
+        });
+        QAction *removeAction = groupMenu->addAction(QStringLiteral("删除分组"));
+        connect(removeAction, &QAction::triggered, this, [this, group]() {
+            emit sigGroupActionRequested(this, group.id, PinGroupAction::kRemove);
+        });
+    }
+    if (!m_groupId.isEmpty()) {
+        m_groupMenu->addSeparator();
+        QAction *removeAction = m_groupMenu->addAction(QStringLiteral("移出分组"));
+        connect(removeAction, &QAction::triggered, this, [this]() { emit sigGroupAssignmentRequested(this, {}); });
+    }
+}
+
+double PinWindow::opacity() const
+{
+    return windowOpacity();
+}
+
+bool PinWindow::shadowEnabled() const
+{
+    return m_shadowEffect != nullptr && m_shadowEffect->isEnabled();
+}
+
+bool PinWindow::isAnimated() const
+{
+    return m_movie != nullptr;
+}
+
+QByteArray PinWindow::animationData() const
+{
+    return m_animationData;
+}
+
+QString PinWindow::animationFormat() const
+{
+    return m_animationFormat;
 }
 
 void PinWindow::mousePressEvent(QMouseEvent *event)
@@ -202,6 +358,7 @@ void PinWindow::keyPressEvent(QKeyEvent *event)
         const int key = event->key();
         if (key >= Qt::Key_0 && key <= Qt::Key_9) {
             setWindowOpacity(key == Qt::Key_0 ? 1.0 : qreal(key - Qt::Key_0) / 10.0);
+            emit sigStateChanged(this);
             return;
         }
     }
@@ -355,6 +512,49 @@ void PinWindow::createContextMenu()
     save_action->setObjectName(QStringLiteral("action_SaveImageAs"));
     connect(save_action, &QAction::triggered, this, &PinWindow::saveImageAs);
 
+    m_animationMenu = m_contextMenu->addMenu(QStringLiteral("动画"));
+    m_animationMenu->setObjectName(QStringLiteral("menu_Animation"));
+    m_animationAction = m_animationMenu->addAction(QStringLiteral("暂停动画"));
+    m_animationAction->setObjectName(QStringLiteral("action_ToggleAnimation"));
+    m_animationAction->setCheckable(true);
+    m_animationMenu->setVisible(false);
+    connect(m_animationAction, &QAction::toggled, this, [this](bool playing) {
+        if (m_movie == nullptr) {
+            return;
+        }
+        m_animationAction->setText(playing ? QStringLiteral("暂停动画") : QStringLiteral("播放动画"));
+        playing ? m_movie->start() : m_movie->stop();
+    });
+    QAction *previousFrame = m_animationMenu->addAction(QStringLiteral("上一帧"));
+    previousFrame->setObjectName(QStringLiteral("action_PreviousFrame"));
+    connect(previousFrame, &QAction::triggered, this, [this]() {
+        if (m_movie != nullptr && m_movie->frameCount() > 0) {
+            m_movie->jumpToFrame((m_movie->currentFrameNumber() - 1 + m_movie->frameCount()) % m_movie->frameCount());
+        }
+    });
+    QAction *nextFrame = m_animationMenu->addAction(QStringLiteral("下一帧"));
+    nextFrame->setObjectName(QStringLiteral("action_NextFrame"));
+    connect(nextFrame, &QAction::triggered, this, [this]() {
+        if (m_movie != nullptr && m_movie->frameCount() > 0) {
+            m_movie->jumpToFrame((m_movie->currentFrameNumber() + 1) % m_movie->frameCount());
+        }
+    });
+    m_animationMenu->addSeparator();
+    const QVector<QPair<QString, int>> speeds = {
+        {QStringLiteral("0.5×"), 50},
+        {QStringLiteral("1×"), 100},
+        {QStringLiteral("2×"), 200},
+    };
+    for (const auto &[label, speed] : speeds) {
+        QAction *speedAction = m_animationMenu->addAction(label);
+        speedAction->setObjectName(QStringLiteral("action_AnimationSpeed%1").arg(speed));
+        connect(speedAction, &QAction::triggered, this, [this, speed]() {
+            if (m_movie != nullptr) {
+                m_movie->setSpeed(speed);
+            }
+        });
+    }
+
     m_shadowAction = m_contextMenu->addAction(QStringLiteral("窗口阴影"));
     m_shadowAction->setObjectName(QStringLiteral("action_WindowShadow"));
     m_shadowAction->setCheckable(true);
@@ -382,6 +582,11 @@ void PinWindow::createContextMenu()
     QAction *flip_vertical = processing_menu->addAction(QStringLiteral("垂直翻转"));
     flip_vertical->setObjectName(QStringLiteral("action_FlipVertical"));
     connect(flip_vertical, &QAction::triggered, this, [this]() { applyTransform(QTransform().scale(1, -1)); });
+
+    m_groupMenu = m_contextMenu->addMenu(QStringLiteral("分组"));
+    m_groupMenu->setObjectName(QStringLiteral("menu_PinGroup"));
+    connect(m_groupMenu, &QMenu::aboutToShow, this, [this]() { setGroups(m_groups); });
+    setGroups(m_groups);
 
     m_contextMenu->addSeparator();
 
@@ -469,6 +674,7 @@ void PinWindow::applyTransform(const QTransform &transform)
     targetContentRect.moveCenter(oldContent.center());
     setContentGeometry(targetContentRect);
     notifyContentGeometryChanged();
+    emit sigStateChanged(this);
 }
 
 void PinWindow::scaleContentBy(qreal factor, const QPoint &anchorGlobal)
@@ -484,6 +690,7 @@ void PinWindow::scaleContentBy(qreal factor, const QPoint &anchorGlobal)
         QPoint(qRound(anchor.x() - nextSize.width() * xRatio), qRound(anchor.y() - nextSize.height() * yRatio)));
     setContentGeometry(targetContentRect);
     notifyContentGeometryChanged();
+    emit sigStateChanged(this);
 }
 
 void PinWindow::moveContentBy(const QPoint &delta)
@@ -506,6 +713,7 @@ void PinWindow::adjustOpacity(int direction)
 {
     const qreal next_opacity = qBound(0.2, windowOpacity() + direction * 0.05, 1.0);
     setWindowOpacity(next_opacity);
+    emit sigStateChanged(this);
 }
 
 void PinWindow::setContentGeometry(const QRect &contentRect)
@@ -566,6 +774,7 @@ void PinWindow::replaceImage(const QImage &image)
     m_currentImage = QPixmap::fromImage(image);
     m_displayedSize = {};
     refreshDisplayedPixmap();
+    emit sigStateChanged(this);
 }
 
 PinWindow::ResizeHandle PinWindow::hitTest(const QPoint &pos) const

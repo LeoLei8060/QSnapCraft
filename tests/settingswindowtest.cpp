@@ -9,6 +9,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -20,10 +21,13 @@ private slots:
     void cancelDiscardsDraftChanges();
     void applyPersistsChanges();
     void outputChangesUseSnipSettings();
+    void showsDefaultOutputPaths();
     void showsHotkeyRegistrationStatus();
     void exposesAdditionalSnipOptions();
     void exposesSelectionUnitSetting();
     void exposesCaptureStartModes();
+    void exposesPinHotkeys();
+    void exposesOcrAvailability();
     void appliesPinAndOcrSettings();
     void rendersSettingsPages();
 };
@@ -103,6 +107,30 @@ void SettingsWindowTest::outputChangesUseSnipSettings()
 
     QSettings settings(path, QSettings::IniFormat);
     QCOMPARE(settings.value(QStringLiteral("Snip/quick_save_path")).toString(), QStringLiteral("C:/Quick"));
+}
+
+void SettingsWindowTest::showsDefaultOutputPaths()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    GlobalConfig::instance()->setConfigPath(directory.filePath(QStringLiteral("config.ini")));
+    QVERIFY(GlobalConfig::instance()->setPreferences(ApplicationPreferences{}));
+
+    SettingsWindow window;
+    auto          *manualPath = window.findChild<QLineEdit *>(QStringLiteral("lineEdit_ManualSavePath"));
+    auto          *quickPath = window.findChild<QLineEdit *>(QStringLiteral("lineEdit_QuickSavePath"));
+    auto          *autoPath = window.findChild<QLineEdit *>(QStringLiteral("lineEdit_AutoSavePath"));
+    auto          *autoSaveHint = window.findChild<QLabel *>(QStringLiteral("label_AutoSaveHint"));
+    QVERIFY(manualPath);
+    QVERIFY(quickPath);
+    QVERIFY(autoPath);
+    QVERIFY(autoSaveHint);
+    QVERIFY(autoSaveHint->text().contains(QStringLiteral("自动保存")));
+
+    const QString downloadDirectory = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    QCOMPARE(manualPath->text(), downloadDirectory);
+    QCOMPARE(quickPath->text(), downloadDirectory);
+    QCOMPARE(autoPath->text(), downloadDirectory);
 }
 
 void SettingsWindowTest::showsHotkeyRegistrationStatus()
@@ -192,6 +220,62 @@ void SettingsWindowTest::exposesCaptureStartModes()
     }
     QVERIFY(window.findChild<QSpinBox *>(QStringLiteral("spin_FixedCaptureWidth")));
     QVERIFY(window.findChild<QSpinBox *>(QStringLiteral("spin_FixedCaptureHeight")));
+}
+
+void SettingsWindowTest::exposesPinHotkeys()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    GlobalConfig::instance()->setConfigPath(directory.filePath(QStringLiteral("config.ini")));
+    QVERIFY(GlobalConfig::instance()->setPreferences(ApplicationPreferences{}));
+
+    SettingsWindow window;
+    auto          *paste = window.findChild<QWidget *>(QStringLiteral("hotkey_Paste"));
+    auto          *hidePins = window.findChild<QWidget *>(QStringLiteral("hotkey_HidePins"));
+    auto          *showHidden = window.findChild<QWidget *>(QStringLiteral("hotkey_ShowHiddenPins"));
+    auto          *closePin = window.findChild<QWidget *>(QStringLiteral("hotkey_ClosePin"));
+    auto          *recoverClosed = window.findChild<QWidget *>(QStringLiteral("hotkey_RecoverClosedPin"));
+    QVERIFY(paste);
+    QVERIFY(hidePins);
+    QVERIFY(showHidden);
+    QVERIFY(closePin);
+    QVERIFY(recoverClosed);
+    QLineEdit *pasteEdit = paste->findChild<QLineEdit *>();
+    QLineEdit *hideEdit = hidePins->findChild<QLineEdit *>();
+    QLineEdit *showHiddenEdit = showHidden->findChild<QLineEdit *>();
+    QLineEdit *closeEdit = closePin->findChild<QLineEdit *>();
+    QLineEdit *recoverEdit = recoverClosed->findChild<QLineEdit *>();
+    QVERIFY(pasteEdit);
+    QVERIFY(hideEdit);
+    QVERIFY(showHiddenEdit);
+    QVERIFY(closeEdit);
+    QVERIFY(recoverEdit);
+    QCOMPARE(pasteEdit->text(), QStringLiteral("F3"));
+    QCOMPARE(hideEdit->text(), QStringLiteral("F2"));
+    QCOMPARE(showHiddenEdit->text(), QStringLiteral("Shift+F2"));
+    QCOMPARE(closeEdit->text(), QStringLiteral("F5"));
+    QCOMPARE(recoverEdit->text(), QStringLiteral("Shift+F5"));
+    auto *doubleClickClose = window.findChild<QLabel *>(QStringLiteral("label_PinDoubleClickClose"));
+    QVERIFY(doubleClickClose);
+    QCOMPARE(doubleClickClose->text(), QStringLiteral("双击左键：关闭鼠标下贴图（固定）"));
+}
+
+void SettingsWindowTest::exposesOcrAvailability()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    GlobalConfig::instance()->setConfigPath(directory.filePath(QStringLiteral("config.ini")));
+    QVERIFY(GlobalConfig::instance()->setPreferences(ApplicationPreferences{}));
+
+    SettingsWindow window;
+    auto          *language = window.findChild<QComboBox *>(QStringLiteral("combo_OcrLanguage"));
+    auto          *availability = window.findChild<QLabel *>(QStringLiteral("label_OcrAvailability"));
+    auto          *languageSettings = window.findChild<QPushButton *>(QStringLiteral("btn_OpenOcrLanguageSettings"));
+    QVERIFY(language);
+    QVERIFY(availability);
+    QVERIFY(languageSettings);
+    QVERIFY(!availability->text().isEmpty());
+    QVERIFY(language->count() >= 1);
 }
 
 void SettingsWindowTest::appliesPinAndOcrSettings()

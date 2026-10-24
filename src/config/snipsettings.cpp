@@ -56,9 +56,12 @@ CaptureOptions loadCaptureOptions(QSettings &settings)
     if (!options.anchorBorderColor.isValid()) {
         options.anchorBorderColor = QColor(0, 0, 0, 255);
     }
-    options.quickSavePath = settings.value(QStringLiteral("quick_save_path"), options.quickSavePath).toString();
-    options.manualSavePath = settings.value(QStringLiteral("manual_save_path"), options.manualSavePath).toString();
-    options.autoSavePath = settings.value(QStringLiteral("auto_save_path"), options.autoSavePath).toString();
+    options.quickSavePath = resolveCaptureSaveDirectory(
+        settings.value(QStringLiteral("quick_save_path"), options.quickSavePath).toString());
+    options.manualSavePath = resolveCaptureSaveDirectory(
+        settings.value(QStringLiteral("manual_save_path"), options.manualSavePath).toString());
+    options.autoSavePath = resolveCaptureSaveDirectory(
+        settings.value(QStringLiteral("auto_save_path"), options.autoSavePath).toString());
     options.filenamePattern = settings.value(QStringLiteral("filename_pattern"), options.filenamePattern).toString();
     options.imageFormat = settings.value(QStringLiteral("format"), options.imageFormat).toString();
     options.jpegQuality = qBound(1, settings.value(QStringLiteral("jpeg_quality"), options.jpegQuality).toInt(), 100);

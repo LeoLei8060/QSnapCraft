@@ -12,6 +12,7 @@ class SystemTrayTest : public QObject
 private slots:
     void buildsRedesignedCaptureMenu();
     void emitsSharedApplicationActions();
+    void reflectsOcrAvailability();
     void middleClickRequestsClipboardPaste();
 };
 
@@ -90,6 +91,27 @@ void SystemTrayTest::emitsSharedApplicationActions()
     QCOMPARE(actionSpy.count(), 2);
     QCOMPARE(actionSpy.at(0).at(0).value<ApplicationAction>(), ApplicationAction::kPreferences);
     QCOMPARE(actionSpy.at(1).at(0).value<ApplicationAction>(), ApplicationAction::kQuit);
+}
+
+void SystemTrayTest::reflectsOcrAvailability()
+{
+    SystemTray tray;
+    QAction   *ocr = nullptr;
+    for (QAction *action : tray.contextMenu()->actions()) {
+        if (action->data().value<ApplicationAction>() == ApplicationAction::kOcrSnip) {
+            ocr = action;
+            break;
+        }
+    }
+    QVERIFY(ocr);
+
+    tray.setOcrAvailable(false);
+    QVERIFY(!ocr->isEnabled());
+    QVERIFY(ocr->toolTip().contains(QStringLiteral("语言包")));
+
+    tray.setOcrAvailable(true);
+    QVERIFY(ocr->isEnabled());
+    QCOMPARE(ocr->toolTip(), QStringLiteral("OCR"));
 }
 
 void SystemTrayTest::middleClickRequestsClipboardPaste()

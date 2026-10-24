@@ -1,6 +1,7 @@
 #include "config/snipsettings.h"
 
 #include <QSettings>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -10,6 +11,8 @@ class SnipSettingsTest : public QObject
 
 private slots:
     void loadsCaptureOptionsFromSnipGroup();
+    void defaultsSaveLocationsToDownloads();
+    void resolvesEmptySaveLocationsToDownloads();
     void savesCaptureOptionsToSnipGroup();
 };
 
@@ -44,6 +47,38 @@ void SnipSettingsTest::loadsCaptureOptionsFromSnipGroup()
     QVERIFY(options.soundEnabled);
 }
 
+void SnipSettingsTest::defaultsSaveLocationsToDownloads()
+{
+    const QString        downloadDirectory = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    const CaptureOptions options;
+
+    QCOMPARE(options.manualSavePath, downloadDirectory);
+    QCOMPARE(options.quickSavePath, downloadDirectory);
+    QCOMPARE(options.autoSavePath, downloadDirectory);
+}
+
+void SnipSettingsTest::resolvesEmptySaveLocationsToDownloads()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("config.ini"));
+
+    {
+        QSettings settings(path, QSettings::IniFormat);
+        settings.setValue(QStringLiteral("Snip/manual_save_path"), QString());
+        settings.setValue(QStringLiteral("Snip/quick_save_path"), QString());
+        settings.setValue(QStringLiteral("Snip/auto_save_path"), QString());
+    }
+
+    QSettings            settings(path, QSettings::IniFormat);
+    const CaptureOptions options = loadCaptureOptions(settings);
+    const QString        downloadDirectory = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+
+    QCOMPARE(options.manualSavePath, downloadDirectory);
+    QCOMPARE(options.quickSavePath, downloadDirectory);
+    QCOMPARE(options.autoSavePath, downloadDirectory);
+}
+
 void SnipSettingsTest::savesCaptureOptionsToSnipGroup()
 {
     QTemporaryDir directory;
@@ -71,8 +106,7 @@ void SnipSettingsTest::savesCaptureOptionsToSnipGroup()
     QSettings settings(path, QSettings::IniFormat);
     settings.beginGroup(QStringLiteral("Snip"));
     QCOMPARE(settings.value(QStringLiteral("detect_windows")).toBool(), false);
-    QCOMPARE(settings.value(QStringLiteral("enter_action")).toInt(),
-             static_cast<int>(CaptureOutputAction::kPin));
+    QCOMPARE(settings.value(QStringLiteral("enter_action")).toInt(), static_cast<int>(CaptureOutputAction::kPin));
     QCOMPARE(settings.value(QStringLiteral("enter_exit")).toBool(), false);
     QCOMPARE(settings.value(QStringLiteral("border_width")).toInt(), 7);
     QCOMPARE(settings.value(QStringLiteral("max_areas")).toInt(), 18);

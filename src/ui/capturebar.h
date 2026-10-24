@@ -29,6 +29,7 @@ public:
     void     setHideDelayMs(int delayMs);
     void     setRevealDelayMs(int delayMs);
     void     setSlideDurationMs(int durationMs);
+    void     setOcrAvailable(bool available);
     void     showAtDock(DockEdge       edge,
                         qreal          positionRatio,
                         const QString &screenName = {},
@@ -80,6 +81,7 @@ private:
     QWidget            *m_dragHandle{nullptr};
     QWidget            *m_hotspot{nullptr};
     QPropertyAnimation *m_slideAnimation{nullptr};
+    QToolButton        *m_ocrButton{nullptr};
     QTimer              m_autoHideTimer;
     QTimer              m_revealTimer;
     QTimer              m_pointerTimer;

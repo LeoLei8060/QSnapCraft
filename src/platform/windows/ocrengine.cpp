@@ -1,10 +1,13 @@
 #include "ocrengine.h"
 
+#include <QDebug>
+
 #include <cstring>
 #include <future>
 #include <string>
 #include <thread>
 
+#include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Globalization.h>
 #include <winrt/Windows.Graphics.Imaging.h>
@@ -13,6 +16,7 @@
 #include <winrt/base.h>
 
 namespace {
+using winrt::Windows::Foundation::Collections::IVectorView;
 using winrt::Windows::Globalization::Language;
 using winrt::Windows::Graphics::Imaging::BitmapAlphaMode;
 using winrt::Windows::Graphics::Imaging::BitmapPixelFormat;
@@ -98,6 +102,37 @@ bool isOcrEngineAvailable()
     std::thread([promise = std::move(promise)]() mutable {
         QString error;
         promise.set_value(initializeWinRt(&error) && createEngine({}, &error) != nullptr);
+    }).detach();
+    return future.get();
+}
+
+QStringList availableOcrLanguages()
+{
+    std::promise<QStringList> promise;
+    std::future<QStringList>  future = promise.get_future();
+    std::thread([promise = std::move(promise)]() mutable {
+        QStringList languages;
+        QString     error;
+        if (!initializeWinRt(&error)) {
+            promise.set_value(languages);
+            return;
+        }
+
+        try {
+            const IVectorView<Language> availableLanguages = OcrEngine::AvailableRecognizerLanguages();
+            const uint32_t              languageCount = availableLanguages.Size();
+            for (uint32_t index = 0; index < languageCount; ++index) {
+                const Language language = availableLanguages.GetAt(index);
+                const QString  tag = QString::fromStdWString(std::wstring(language.LanguageTag().c_str())).trimmed();
+                if (!tag.isEmpty() && !languages.contains(tag, Qt::CaseInsensitive)) {
+                    languages.append(tag);
+                }
+            }
+        } catch (const winrt::hresult_error &exception) {
+            qWarning() << "Failed to enumerate OCR languages:" << QString::fromStdWString(exception.message().c_str());
+        }
+        languages.sort(Qt::CaseInsensitive);
+        promise.set_value(languages);
     }).detach();
     return future.get();
 }

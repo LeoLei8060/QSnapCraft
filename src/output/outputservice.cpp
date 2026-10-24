@@ -6,7 +6,6 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QStandardPaths>
 #include <QStringList>
 
 namespace {
@@ -34,10 +33,7 @@ QString expandPattern(QString pattern)
 
 QString outputPath(const QString &directory, const QString &pattern, const QString &format)
 {
-    QString resolvedDirectory = directory.trimmed();
-    if (resolvedDirectory.isEmpty()) {
-        resolvedDirectory = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-    }
+    const QString resolvedDirectory = resolveCaptureSaveDirectory(directory);
 
     QString fileName = expandPattern(pattern.trimmed());
     if (fileName.isEmpty()) {

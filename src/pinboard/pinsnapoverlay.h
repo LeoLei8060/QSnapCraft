@@ -12,7 +12,6 @@ class PinSnapOverlay : public QWidget
 public:
     explicit PinSnapOverlay(QWidget *parent = nullptr);
 
-    void setDesktopGeometry(const QRect &geometry);
     void setGuides(const QVector<QLineF> &guides);
 
 protected:

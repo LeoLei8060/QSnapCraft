@@ -8,6 +8,8 @@
 int main(int argc, char *argv[])
 {
     SingleApplication app(argc, argv, QStringLiteral("QSnapCraft"));
+    app.setOrganizationName(QStringLiteral("QSnapCraft"));
+    app.setApplicationName(QStringLiteral("QSnapCraft"));
 
     if (app.status() == SingleApplication::InstanceStatus::kFailed) {
         QMessageBox::critical(nullptr,

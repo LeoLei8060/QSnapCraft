@@ -382,9 +382,22 @@ QToolButton *CaptureBar::createActionButton(ApplicationAction action)
     button->setEnabled(isImplementedAction(action));
     button->setToolTip(isImplementedAction(action) ? actionDisplayName(action)
                                                    : QStringLiteral("%1（功能开发中）").arg(actionDisplayName(action)));
+    if (action == ApplicationAction::kOcrSnip) {
+        m_ocrButton = button;
+    }
 
     connect(button, &QToolButton::clicked, this, [this, action]() { emit sigActionTriggered(action); });
     return button;
+}
+
+void CaptureBar::setOcrAvailable(bool available)
+{
+    if (m_ocrButton == nullptr) {
+        return;
+    }
+    m_ocrButton->setEnabled(available);
+    m_ocrButton->setToolTip(available ? actionDisplayName(ApplicationAction::kOcrSnip)
+                                      : QStringLiteral("OCR（未安装 Windows OCR 语言包）"));
 }
 
 void CaptureBar::updateOrientation()

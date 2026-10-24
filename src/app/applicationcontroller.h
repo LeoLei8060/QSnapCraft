@@ -49,6 +49,7 @@ private:
     void startScrollScreenshot();
     void startScreenshotWithMode(CaptureStartMode mode, const QSize &centered_size = {});
     void applyCaptureBarSettings();
+    void refreshOcrAvailability();
     void restoreCaptureBar();
 
     std::unique_ptr<GlobalConfig>      m_globalConfig;

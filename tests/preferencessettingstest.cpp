@@ -12,6 +12,7 @@ private slots:
     void roundTripsApplicationPreferences();
     void writesOutputSettingsToSnipGroup();
     void preservesUnknownSettings();
+    void migratesLegacyDoubleClickCloseShortcut();
 };
 
 void PreferencesSettingsTest::roundTripsApplicationPreferences()
@@ -101,6 +102,18 @@ void PreferencesSettingsTest::preservesUnknownSettings()
     settings.sync();
 
     QCOMPARE(settings.value(QStringLiteral("Other/FutureValue")).toString(), QStringLiteral("keep-me"));
+}
+
+void PreferencesSettingsTest::migratesLegacyDoubleClickCloseShortcut()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("config.ini"));
+    QSettings     settings(path, QSettings::IniFormat);
+    settings.setValue(QStringLiteral("Control/ClosePinHotkey"), QStringLiteral("DoubleLeftClick"));
+
+    const ApplicationPreferences preferences = loadApplicationPreferences(settings);
+    QCOMPARE(preferences.control.closePinHotkey, QStringLiteral("F5"));
 }
 
 QTEST_APPLESS_MAIN(PreferencesSettingsTest)

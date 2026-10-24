@@ -35,6 +35,16 @@ ControlSettings::ControlSettings(QWidget *parent)
     m_captureFixedSizeHotkey->setObjectName(QStringLiteral("hotkey_CaptureFixedSize"));
     m_clickThroughHotkey = new QHotKeyLineEdit(hotkeyGroup);
     m_clickThroughHotkey->setObjectName(QStringLiteral("hotkey_ClickThrough"));
+    m_pasteHotkey = new QHotKeyLineEdit(hotkeyGroup);
+    m_pasteHotkey->setObjectName(QStringLiteral("hotkey_Paste"));
+    m_showAllPinsHotkey = new QHotKeyLineEdit(hotkeyGroup);
+    m_showAllPinsHotkey->setObjectName(QStringLiteral("hotkey_HidePins"));
+    m_showHiddenPinsHotkey = new QHotKeyLineEdit(hotkeyGroup);
+    m_showHiddenPinsHotkey->setObjectName(QStringLiteral("hotkey_ShowHiddenPins"));
+    m_closePinHotkey = new QHotKeyLineEdit(hotkeyGroup);
+    m_closePinHotkey->setObjectName(QStringLiteral("hotkey_ClosePin"));
+    m_recoverClosedPinHotkey = new QHotKeyLineEdit(hotkeyGroup);
+    m_recoverClosedPinHotkey->setObjectName(QStringLiteral("hotkey_RecoverClosedPin"));
     formLayout->addRow(tr("自动捕获："),
                        createHotkeyRow(m_captureHotkey, &m_captureStatus, QStringLiteral("label_HotkeyCaptureStatus")));
     formLayout->addRow(tr("自动捕获并复制："),
@@ -61,6 +71,27 @@ ControlSettings::ControlSettings(QWidget *parent)
                        createHotkeyRow(m_clickThroughHotkey,
                                        &m_clickThroughStatus,
                                        QStringLiteral("label_HotkeyClickThroughStatus")));
+    formLayout->addRow(tr("从剪贴板贴图："),
+                       createHotkeyRow(m_pasteHotkey, &m_pasteStatus, QStringLiteral("label_HotkeyPasteStatus")));
+    formLayout->addRow(tr("隐藏全部可见贴图："),
+                       createHotkeyRow(m_showAllPinsHotkey,
+                                       &m_showAllPinsStatus,
+                                       QStringLiteral("label_HotkeyHidePinsStatus")));
+    formLayout->addRow(tr("显示全部隐藏贴图："),
+                       createHotkeyRow(m_showHiddenPinsHotkey,
+                                       &m_showHiddenPinsStatus,
+                                       QStringLiteral("label_HotkeyShowHiddenPinsStatus")));
+    formLayout->addRow(tr("关闭鼠标下的贴图："),
+                       createHotkeyRow(m_closePinHotkey,
+                                       &m_closePinStatus,
+                                       QStringLiteral("label_HotkeyClosePinStatus")));
+    formLayout->addRow(tr("恢复上次关闭的贴图："),
+                       createHotkeyRow(m_recoverClosedPinHotkey,
+                                       &m_recoverClosedPinStatus,
+                                       QStringLiteral("label_HotkeyRecoverClosedPinStatus")));
+    auto *doubleClickClose = new QLabel(tr("双击左键：关闭鼠标下贴图（固定）"), hotkeyGroup);
+    doubleClickClose->setObjectName(QStringLiteral("label_PinDoubleClickClose"));
+    formLayout->addRow(tr("双击贴图："), doubleClickClose);
 
     auto *fixed_size_row = new QWidget(hotkeyGroup);
     auto *fixed_size_layout = new QHBoxLayout(fixed_size_row);
@@ -112,6 +143,11 @@ ControlSettings::ControlSettings(QWidget *parent)
     connectHotkey(m_captureLastAreaHotkey);
     connectHotkey(m_captureActiveScreenHotkey);
     connectHotkey(m_captureFixedSizeHotkey);
+    connectHotkey(m_pasteHotkey);
+    connectHotkey(m_showAllPinsHotkey);
+    connectHotkey(m_showHiddenPinsHotkey);
+    connectHotkey(m_closePinHotkey);
+    connectHotkey(m_recoverClosedPinHotkey);
     connectHotkey(m_clickThroughHotkey);
     connect(m_fixedWidth, &QSpinBox::valueChanged, this, &ControlSettings::sigChanged);
     connect(m_fixedHeight, &QSpinBox::valueChanged, this, &ControlSettings::sigChanged);
@@ -127,6 +163,11 @@ void ControlSettings::setPreferences(const ApplicationPreferences &preferences)
     m_captureLastAreaHotkey->setShortcut(preferences.control.captureLastAreaHotkey);
     m_captureActiveScreenHotkey->setShortcut(preferences.control.captureActiveScreenHotkey);
     m_captureFixedSizeHotkey->setShortcut(preferences.control.captureFixedSizeHotkey);
+    m_pasteHotkey->setShortcut(preferences.control.showLastPinHotkey);
+    m_showAllPinsHotkey->setShortcut(preferences.control.hidePinsHotkey);
+    m_showHiddenPinsHotkey->setShortcut(preferences.control.showHiddenPinsHotkey);
+    m_closePinHotkey->setShortcut(preferences.control.closePinHotkey);
+    m_recoverClosedPinHotkey->setShortcut(preferences.control.recoverClosedPinHotkey);
     m_clickThroughHotkey->setShortcut(preferences.control.clickThroughHotkey);
     m_fixedWidth->setValue(preferences.control.fixedCaptureWidth);
     m_fixedHeight->setValue(preferences.control.fixedCaptureHeight);
@@ -141,6 +182,11 @@ void ControlSettings::writePreferences(ApplicationPreferences &preferences) cons
     preferences.control.captureLastAreaHotkey = m_captureLastAreaHotkey->shortcut();
     preferences.control.captureActiveScreenHotkey = m_captureActiveScreenHotkey->shortcut();
     preferences.control.captureFixedSizeHotkey = m_captureFixedSizeHotkey->shortcut();
+    preferences.control.showLastPinHotkey = m_pasteHotkey->shortcut();
+    preferences.control.hidePinsHotkey = m_showAllPinsHotkey->shortcut();
+    preferences.control.showHiddenPinsHotkey = m_showHiddenPinsHotkey->shortcut();
+    preferences.control.closePinHotkey = m_closePinHotkey->shortcut();
+    preferences.control.recoverClosedPinHotkey = m_recoverClosedPinHotkey->shortcut();
     preferences.control.clickThroughHotkey = m_clickThroughHotkey->shortcut();
     preferences.control.fixedCaptureWidth = m_fixedWidth->value();
     preferences.control.fixedCaptureHeight = m_fixedHeight->value();
@@ -155,6 +201,11 @@ void ControlSettings::restoreDefaults()
     m_captureLastAreaHotkey->setShortcut(defaults.captureLastAreaHotkey);
     m_captureActiveScreenHotkey->setShortcut(defaults.captureActiveScreenHotkey);
     m_captureFixedSizeHotkey->setShortcut(defaults.captureFixedSizeHotkey);
+    m_pasteHotkey->setShortcut(defaults.showLastPinHotkey);
+    m_showAllPinsHotkey->setShortcut(defaults.hidePinsHotkey);
+    m_showHiddenPinsHotkey->setShortcut(defaults.showHiddenPinsHotkey);
+    m_closePinHotkey->setShortcut(defaults.closePinHotkey);
+    m_recoverClosedPinHotkey->setShortcut(defaults.recoverClosedPinHotkey);
     m_clickThroughHotkey->setShortcut(defaults.clickThroughHotkey);
     m_fixedWidth->setValue(defaults.fixedCaptureWidth);
     m_fixedHeight->setValue(defaults.fixedCaptureHeight);
@@ -202,5 +253,10 @@ void ControlSettings::refreshHotkeyStatuses()
                   m_captureActiveScreenHotkey->shortcut(),
                   ShortcutManager::captureActiveScreenKey);
     update_status(m_captureFixedSizeStatus, m_captureFixedSizeHotkey->shortcut(), ShortcutManager::captureFixedSizeKey);
+    update_status(m_pasteStatus, m_pasteHotkey->shortcut(), ShortcutManager::showLastPinKey);
+    update_status(m_showAllPinsStatus, m_showAllPinsHotkey->shortcut(), ShortcutManager::hidePinsKey);
+    update_status(m_showHiddenPinsStatus, m_showHiddenPinsHotkey->shortcut(), ShortcutManager::showHiddenPinsKey);
+    update_status(m_closePinStatus, m_closePinHotkey->shortcut(), ShortcutManager::closePinKey);
+    update_status(m_recoverClosedPinStatus, m_recoverClosedPinHotkey->shortcut(), ShortcutManager::recoverClosedPinKey);
     update_status(m_clickThroughStatus, m_clickThroughHotkey->shortcut(), ShortcutManager::clickThroughKey);
 }

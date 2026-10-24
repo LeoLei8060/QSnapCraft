@@ -5,6 +5,14 @@
 
 enum class TextImageFormat { kPlainText, kHtml };
 
+struct PinGroupData
+{
+    QString id;
+    QString name;
+};
+
+enum class PinGroupAction { kShow, kHide, kClose, kRename, kRemove };
+
 struct TextToImageOptions
 {
     QString fontFamily;

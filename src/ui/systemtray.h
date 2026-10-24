@@ -20,6 +20,7 @@ public:
     void   closeContextMenu();
     void   setCaptureBarVisible(bool visible);
     void   setHotkeysEnabled(bool enabled);
+    void   setOcrAvailable(bool available);
     void   showMessage(const QString &title, const QString &message);
     QMenu *contextMenu() const;
 
@@ -38,4 +39,5 @@ private:
     std::unique_ptr<QMenu>           m_trayMenu;
     QAction                         *m_toggleCaptureBarAction{nullptr};
     QAction                         *m_toggleHotkeysAction{nullptr};
+    QAction                         *m_ocrAction{nullptr};
 };

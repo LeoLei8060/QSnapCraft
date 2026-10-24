@@ -62,6 +62,17 @@ bool isDesktopWindow(HWND window)
     return name == QStringLiteral("Progman") || name == QStringLiteral("WorkerW");
 }
 
+bool isTaskbarWindow(HWND window)
+{
+    wchar_t   className[128]{};
+    const int length = GetClassNameW(window, className, 128);
+    if (length <= 0) {
+        return false;
+    }
+    const QString name = QString::fromWCharArray(className, length);
+    return name == QStringLiteral("Shell_TrayWnd") || name == QStringLiteral("Shell_SecondaryTrayWnd");
+}
+
 bool windowBounds(HWND window, QRect *rect)
 {
     WINDOWINFO info{};
@@ -309,7 +320,8 @@ QVector<QRect> ElementDetector::enumerateWindowRects()
             if (rects->size() >= MAX_WINDOWS) {
                 return FALSE;
             }
-            if (isOwnWindow(window) || isDesktopWindow(window) || !IsWindowVisible(window) || IsIconic(window)) {
+            if (isOwnWindow(window) || isDesktopWindow(window) || isTaskbarWindow(window) || !IsWindowVisible(window)
+                || IsIconic(window)) {
                 return TRUE;
             }
             QRect rect;

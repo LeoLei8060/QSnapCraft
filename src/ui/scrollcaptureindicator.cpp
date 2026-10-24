@@ -33,9 +33,9 @@ void ScrollCaptureIndicator::setSelection(const QRect &global_selection)
     update();
 }
 
-void ScrollCaptureIndicator::setCapturedHeight(int height)
+void ScrollCaptureIndicator::setCapturedSize(const QSize &size)
 {
-    m_capturedHeight = qMax(0, height);
+    m_capturedSize = QSize(qMax(0, size.width()), qMax(0, size.height()));
     update();
 }
 
@@ -50,8 +50,10 @@ void ScrollCaptureIndicator::paintEvent(QPaintEvent *event)
     painter.setBrush(Qt::NoBrush);
     painter.drawRect(border_rect.adjusted(-2, -2, 1, 1));
 
-    const QString hint = QStringLiteral("滚动中… Enter 完成 / Esc 取消 · 已捕获 %1 px").arg(m_capturedHeight);
-    QFont         font = painter.font();
+    const QString hint = QStringLiteral("滚动中… Enter 完成 / Esc 取消 · 已拼接 %1 × %2 px")
+                             .arg(m_capturedSize.width())
+                             .arg(m_capturedSize.height());
+    QFont font = painter.font();
     font.setPixelSize(12);
     font.setBold(true);
     painter.setFont(font);

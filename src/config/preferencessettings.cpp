@@ -43,12 +43,23 @@ ApplicationPreferences loadApplicationPreferences(QSettings &settings)
         = settings.value(QStringLiteral("ShowLastPinHotkey"), preferences.control.showLastPinHotkey).toString();
     preferences.control.showPinsHotkey
         = settings.value(QStringLiteral("ShowPinsHotkey"), preferences.control.showPinsHotkey).toString();
+    preferences.control.hidePinsHotkey
+        = settings.value(QStringLiteral("HidePinsHotkey"), preferences.control.hidePinsHotkey).toString();
+    preferences.control.showHiddenPinsHotkey
+        = settings.value(QStringLiteral("ShowHiddenPinsHotkey"), preferences.control.showHiddenPinsHotkey).toString();
     preferences.control.clickThroughHotkey
         = settings.value(QStringLiteral("ClickThroughHotkey"), preferences.control.clickThroughHotkey).toString();
     preferences.control.transparencyHotkey
         = settings.value(QStringLiteral("TransparencyHotkey"), preferences.control.transparencyHotkey).toString();
     preferences.control.closePinHotkey
         = settings.value(QStringLiteral("ClosePinHotkey"), preferences.control.closePinHotkey).toString();
+    if (preferences.control.closePinHotkey.compare(QStringLiteral("DoubleLeftClick"), Qt::CaseInsensitive) == 0) {
+        preferences.control.closePinHotkey = ControlSettingsData{}.closePinHotkey;
+    }
+    preferences.control.recoverClosedPinHotkey = settings
+                                                     .value(QStringLiteral("RecoverClosedPinHotkey"),
+                                                            preferences.control.recoverClosedPinHotkey)
+                                                     .toString();
     settings.endGroup();
 
     settings.beginGroup(QStringLiteral("Interface"));
@@ -160,9 +171,12 @@ void saveApplicationPreferences(QSettings &settings, const ApplicationPreference
     settings.setValue(QStringLiteral("FixedCaptureHeight"), preferences.control.fixedCaptureHeight);
     settings.setValue(QStringLiteral("ShowLastPinHotkey"), preferences.control.showLastPinHotkey);
     settings.setValue(QStringLiteral("ShowPinsHotkey"), preferences.control.showPinsHotkey);
+    settings.setValue(QStringLiteral("HidePinsHotkey"), preferences.control.hidePinsHotkey);
+    settings.setValue(QStringLiteral("ShowHiddenPinsHotkey"), preferences.control.showHiddenPinsHotkey);
     settings.setValue(QStringLiteral("ClickThroughHotkey"), preferences.control.clickThroughHotkey);
     settings.setValue(QStringLiteral("TransparencyHotkey"), preferences.control.transparencyHotkey);
     settings.setValue(QStringLiteral("ClosePinHotkey"), preferences.control.closePinHotkey);
+    settings.setValue(QStringLiteral("RecoverClosedPinHotkey"), preferences.control.recoverClosedPinHotkey);
     settings.endGroup();
 
     settings.beginGroup(QStringLiteral("Interface"));

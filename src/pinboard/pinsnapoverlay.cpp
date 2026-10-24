@@ -6,18 +6,11 @@ PinSnapOverlay::PinSnapOverlay(QWidget *parent)
     : QWidget(parent)
 {
     setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::WindowTransparentForInput
-                   | Qt::NoDropShadowWindowHint);
+                   | Qt::WindowDoesNotAcceptFocus | Qt::NoDropShadowWindowHint);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setFocusPolicy(Qt::NoFocus);
-}
-
-void PinSnapOverlay::setDesktopGeometry(const QRect &geometry)
-{
-    if (geometry.isValid() && geometry != this->geometry()) {
-        setGeometry(geometry);
-    }
 }
 
 void PinSnapOverlay::setGuides(const QVector<QLineF> &guides)
@@ -28,8 +21,18 @@ void PinSnapOverlay::setGuides(const QVector<QLineF> &guides)
         update();
         return;
     }
-    show();
-    raise();
+    const QRectF bounds = [&guides]() {
+        QRectF result(guides.constFirst().p1(), guides.constFirst().p2());
+        for (const QLineF &guide : guides) {
+            result = result.united(QRectF(guide.p1(), guide.p2()));
+        }
+        return result.adjusted(-2, -2, 2, 2);
+    }();
+    setGeometry(bounds.toAlignedRect());
+    if (!isVisible()) {
+        show();
+        raise();
+    }
     update();
 }
 

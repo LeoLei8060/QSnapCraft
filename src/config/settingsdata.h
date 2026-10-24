@@ -24,11 +24,14 @@ struct ControlSettingsData
     QString captureFixedSizeHotkey = "F9";    // 固定尺寸居中截图
     int     fixedCaptureWidth = 800;
     int     fixedCaptureHeight = 600;
-    QString showLastPinHotkey = "F3";           // 显示最近贴图
-    QString showPinsHotkey = "Shift+F3";        // 隐藏/显示所有贴图
-    QString clickThroughHotkey = "F4";          // 切换贴图鼠标穿透
-    QString transparencyHotkey = "Ctrl+Wheel";  // 贴图透明度
-    QString closePinHotkey = "DoubleLeftClick"; // 关闭贴图
+    QString showLastPinHotkey = "F3";          // 显示最近贴图
+    QString hidePinsHotkey = "F2";             // 隐藏全部可见贴图
+    QString showHiddenPinsHotkey = "Shift+F2"; // 显示全部隐藏贴图
+    QString showPinsHotkey = "Shift+F3";       // 兼容旧配置，不再注册
+    QString clickThroughHotkey = "F4";         // 切换贴图鼠标穿透
+    QString transparencyHotkey = "Ctrl+Wheel"; // 贴图透明度
+    QString closePinHotkey = "F5";             // 关闭鼠标下贴图
+    QString recoverClosedPinHotkey = "Shift+F5";
 };
 
 // 桌面功能工具条设置
